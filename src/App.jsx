@@ -1,18 +1,30 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Layout } from 'antd';
 import { useState } from 'react';
+
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+
+import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import Jobs from './pages/Jobs';
 import Banner from './pages/Banner';
 import AboutUs from './pages/AboutUs';
 import Services from './pages/Services';
 import Faqs from './pages/Faqs';
+
 import './App.css';
 
 const { Content } = Layout;
 
-function App() {
+// ✅ Protected Route
+const ProtectedRoute = () => {
+  const token = localStorage.getItem('token');
+  return token ? <Outlet /> : <Navigate to="/login" replace />;
+};
+
+// ✅ Admin Layout
+const AdminLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -20,26 +32,44 @@ function App() {
       <Sidebar collapsed={collapsed} />
       <Layout>
         <Header collapsed={collapsed} setCollapsed={setCollapsed} />
-        <Content 
-          style={{ 
-            margin: '24px 16px', 
-            padding: 24, 
-            background: '#f0f2f5', 
-            marginLeft: collapsed ? '4.5rem': '16rem',
-            transition: 'all 0.1s ease-in-out', 
+        <Content
+          style={{
+            margin: '24px 16px',
+            padding: 24,
+            background: '#f0f2f5',
+            marginLeft: collapsed ? '4.5rem' : '16rem',
+            transition: 'all 0.2s ease-in-out',
           }}
         >
-          <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/banner" element={<Banner />} />
-            <Route path="/about-us" element={<AboutUs />} />
-            <Route path="/services" element={<Services />} />
-            <Route path="/faqs" element={<Faqs />} />
-          </Routes>
+          <Outlet />
         </Content>
       </Layout>
     </Layout>
+  );
+};
+
+function App() {
+  return (
+    <Routes>
+      {/* Public Route */}
+      <Route path="/login" element={<Login />} />
+
+      {/* Protected Routes */}
+      <Route element={<ProtectedRoute />}>
+        <Route element={<AdminLayout />}>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="jobs" element={<Jobs />} />
+          <Route path="banner" element={<Banner />} />
+          <Route path="about-us" element={<AboutUs />} />
+          <Route path="services" element={<Services />} />
+          <Route path="faqs" element={<Faqs />} />
+        </Route>
+      </Route>
+
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
   );
 }
 

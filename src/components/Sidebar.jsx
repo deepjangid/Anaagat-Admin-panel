@@ -6,6 +6,7 @@ import {
   MdInfoOutline,
   MdMiscellaneousServices,
   MdQuestionAnswer,
+  MdWork,
   MdLogout,
 } from 'react-icons/md';
 
@@ -20,6 +21,11 @@ const Sidebar = ({ collapsed }) => {
       key: '/dashboard',
       icon: <MdDashboard size={20} />,
       label: 'Dashboard',
+    },
+    {
+      key: '/jobs',
+      icon: <MdWork size={20} />,
+      label: 'Jobs',
     },
     {
       key: '/banner',
@@ -46,8 +52,9 @@ const Sidebar = ({ collapsed }) => {
   const handleMenuClick = ({ key }) => {
     if (key === 'logout') {
       // Handle logout logic here
-      console.log('Logging out...');
-      // You can add your logout logic here
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      navigate('/login');
     } else {
       navigate(key);
     }
