@@ -1,0 +1,1 @@
+VITE_APP_URL=https://annagat-admin-backend.onrender.com
