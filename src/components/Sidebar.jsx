@@ -7,6 +7,7 @@ import {
   MdMiscellaneousServices,
   MdQuestionAnswer,
   MdWork,
+  MdPeople,   // ← NEW
   MdLogout,
 } from 'react-icons/md';
 
@@ -26,6 +27,11 @@ const Sidebar = ({ collapsed }) => {
       key: '/jobs',
       icon: <MdWork size={20} />,
       label: 'Jobs',
+    },
+    {
+      key: '/applications',       // ← NEW
+      icon: <MdPeople size={20} />,
+      label: 'Applications',
     },
     {
       key: '/banner',
@@ -51,7 +57,6 @@ const Sidebar = ({ collapsed }) => {
 
   const handleMenuClick = ({ key }) => {
     if (key === 'logout') {
-      // Handle logout logic here
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       navigate('/login');
@@ -75,9 +80,7 @@ const Sidebar = ({ collapsed }) => {
         bottom: 0,
       }}
     >
-      <div className="logo">
-        {collapsed ? 'AD' : 'Admin Dashboard'}
-      </div>
+      <div className="logo">{collapsed ? 'AD' : 'Admin Dashboard'}</div>
       <Menu
         theme="dark"
         mode="inline"

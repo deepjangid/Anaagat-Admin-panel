@@ -8,6 +8,7 @@ import Header from './components/Header';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Jobs from './pages/Jobs';
+import Applications from './pages/Applications'; // ← NEW
 import Banner from './pages/Banner';
 import AboutUs from './pages/AboutUs';
 import Services from './pages/Services';
@@ -17,13 +18,11 @@ import './App.css';
 
 const { Content } = Layout;
 
-// ✅ Protected Route
 const ProtectedRoute = () => {
   const token = localStorage.getItem('token');
   return token ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
-// ✅ Admin Layout
 const AdminLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -51,15 +50,14 @@ const AdminLayout = () => {
 function App() {
   return (
     <Routes>
-      {/* Public Route */}
       <Route path="/login" element={<Login />} />
 
-      {/* Protected Routes */}
       <Route element={<ProtectedRoute />}>
         <Route element={<AdminLayout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="jobs" element={<Jobs />} />
+          <Route path="applications" element={<Applications />} /> {/* ← NEW */}
           <Route path="banner" element={<Banner />} />
           <Route path="about-us" element={<AboutUs />} />
           <Route path="services" element={<Services />} />
@@ -67,7 +65,6 @@ function App() {
         </Route>
       </Route>
 
-      {/* Fallback */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
