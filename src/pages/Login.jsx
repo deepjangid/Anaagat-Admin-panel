@@ -13,19 +13,24 @@ const Login = () => {
   const onFinish = async (values) => {
     setLoading(true);
     try {
-      const response = await authAPI.login(values);
+      const res = await authAPI.login(values);
 
-      if (response.data.success) {
-        // Store token and user data
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-
+      // ✅ Check token instead of success
+      if (res.data.token) {
+        localStorage.setItem('token', res.data.token);
+        localStorage.setItem('user', JSON.stringify(res.data.user));
         message.success('Login successful!');
         navigate('/dashboard');
       }
+
     } catch (error) {
       console.error('Login error:', error);
-      message.error(error.response?.data?.message || 'Login failed. Please try again.');
+
+      message.error(
+        error.response?.data?.msg ||
+        error.response?.data?.message ||
+        'Login failed. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
@@ -49,45 +54,28 @@ const Login = () => {
             name="email"
             rules={[
               { required: true, message: 'Please input your email!' },
-              { type: 'email', message: 'Please enter a valid email!' }
+              { type: 'email', message: 'Enter valid email!' }
             ]}
           >
-            <Input
-              prefix={<MdEmail style={{ color: 'rgba(0,0,0,.25)' }} />}
-              placeholder="Email"
-            />
+            <Input prefix={<MdEmail />} placeholder="Email" />
           </Form.Item>
 
           <Form.Item
             name="password"
             rules={[
-              { required: true, message: 'Please input your password!' },
-              { min: 6, message: 'Password must be at least 6 characters!' }
+              { required: true, message: 'Enter password!' },
+              { min: 6, message: 'Min 6 characters' }
             ]}
           >
-            <Input.Password
-              prefix={<MdLock style={{ color: 'rgba(0,0,0,.25)' }} />}
-              placeholder="Password"
-            />
+            <Input.Password prefix={<MdLock />} placeholder="Password" />
           </Form.Item>
 
           <Form.Item>
-            <Button
-              type="primary"
-              htmlType="submit"
-              block
-              loading={loading}
-            >
+            <Button type="primary" htmlType="submit" block loading={loading}>
               Sign In
             </Button>
           </Form.Item>
         </Form>
-
-        <div className="login-footer">
-          {/* <Text type="secondary" style={{ fontSize: '12px' }}>
-            Default credentials: admin@example.com / password123
-          </Text> */}
-        </div>
       </Card>
     </div>
   );

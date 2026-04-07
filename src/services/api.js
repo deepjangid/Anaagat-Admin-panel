@@ -1,10 +1,15 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_APP_URL;
+import { DEFAULT_API_BASE_URL } from '../assets/Helper';
+
+const API_BASE_URL =
+  import.meta.env.VITE_APP_URL ||
+  (import.meta.env.DEV ? 'http://localhost:5000' : DEFAULT_API_BASE_URL) ||
+  'http://localhost:5000';
 
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
-  withCredentials: true,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -13,7 +18,12 @@ const api = axios.create({
 // Attach JWT token to every request
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    let token;
+    try {
+      token = localStorage.getItem('token');
+    } catch {
+      token = null;
+    }
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -27,8 +37,12 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      try {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      } catch {
+        // ignore storage failures
+      }
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
@@ -46,22 +60,21 @@ export const authAPI = {
 };
 
 // ─── JOBS ────────────────────────────────────────────────────────────────────
+// GET ALL JOBS
 export const jobsAPI = {
-  getAll: (params) => api.get('/jobs', { params }),
-  getById: (id) => api.get(`/jobs/${id}`),
-  create: (jobData) => api.post('/jobs', jobData),
-  update: (id, jobData) => api.put(`/jobs/${id}`, jobData),
+  getAll: (params) => api.get("/jobs", { params }),
+  create: (data) => api.post("/jobs", data),
+  update: (id, data) => api.put(`/jobs/${id}`, data),
   delete: (id) => api.delete(`/jobs/${id}`),
-  getStats: () => api.get('/jobs/stats/overview'),
 };
 
 // ─── APPLICATIONS ────────────────────────────────────────────────────────────
 export const applicationsAPI = {
   // List with optional ?page=&limit=&status=&search=
-  getAll: (params) => api.get('/applications', { params }),
+  getAll: (params, config = {}) => api.get('/applications', { params, ...config }),
 
   // Single application detail
-  getById: (id) => api.get(`/applications/${id}`),
+  getById: (id, config = {}) => api.get(`/applications/${id}`, config),
 
   // Download resume — returns a blob, so we configure responseType here
   downloadResume: (id, applicantName) =>
@@ -69,7 +82,11 @@ export const applicationsAPI = {
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `${applicantName.replace(/\s+/g, '_')}_Resume.pdf`);
+      const safeName = String(applicantName || 'Applicant')
+        .trim()
+        .replace(/\s+/g, '_')
+        .replace(/[^a-zA-Z0-9._-]/g, '');
+      link.setAttribute('download', `${safeName || 'Applicant'}_Resume.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -77,16 +94,23 @@ export const applicationsAPI = {
     }),
 
   // Update status: pending | reviewing | shortlisted | rejected | hired
-  updateStatus: (id, status) => api.patch(`/applications/${id}/status`, { status }),
+  updateStatus: (id, status, config = {}) => api.patch(`/applications/${id}/status`, { status }, config),
 
   // Save admin notes
-  updateNotes: (id, notes) => api.patch(`/applications/${id}/notes`, { notes }),
+  updateNotes: (id, notes, config = {}) => api.patch(`/applications/${id}/notes`, { notes }, config),
 
   // Delete application
-  delete: (id) => api.delete(`/applications/${id}`),
+  delete: (id, config = {}) => api.delete(`/applications/${id}`, config),
 
   // Dashboard stats
-  getStats: () => api.get('/applications/stats'),
+  getStats: (config = {}) => api.get('/applications/stats', config),
+};
+
+// --- ADMIN ---
+export const adminAPI = {
+  getDashboard: (params, config = {}) => api.get('/admin/dashboard', { params, ...config }),
+  getUsers: (params, config = {}) => api.get('/admin/users', { params, ...config }),
+  deleteUser: (id, config = {}) => api.delete(`/admin/user/${id}`, config),
 };
 
 export default api;

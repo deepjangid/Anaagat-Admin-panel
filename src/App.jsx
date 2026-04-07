@@ -8,7 +8,7 @@ import Header from './components/Header';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Jobs from './pages/Jobs';
-import Applications from './pages/Applications'; // ← NEW
+import Applications from './pages/ApplicationsPage';
 import Banner from './pages/Banner';
 import AboutUs from './pages/AboutUs';
 import Services from './pages/Services';

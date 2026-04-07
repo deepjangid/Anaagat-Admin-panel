@@ -1,91 +1,111 @@
-import { Card, Row, Col, Statistic, Table, Tag } from 'antd';
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
-import { MdArrowUpward, MdArrowDownward, MdPeople, MdShoppingCart, MdAttachMoney } from 'react-icons/md';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Card, Row, Col, Statistic, Table, Tag, message } from 'antd';
+import { MdPeople, MdWork, MdVerifiedUser } from 'react-icons/md';
+import { adminAPI } from '../services/api';
 
 const Dashboard = () => {
-  // Sample data for charts
-  const lineChartData = [
-    { month: 'Jan', revenue: 4000, orders: 2400 },
-    { month: 'Feb', revenue: 3000, orders: 1398 },
-    { month: 'Mar', revenue: 2000, orders: 9800 },
-    { month: 'Apr', revenue: 2780, orders: 3908 },
-    { month: 'May', revenue: 1890, orders: 4800 },
-    { month: 'Jun', revenue: 2390, orders: 3800 },
-    { month: 'Jul', revenue: 3490, orders: 4300 },
-  ];
+  const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    usersCount: 0,
+    adminCount: 0,
+    activeUsers: 0,
+    totalJobs: 0,
+    activeJobs: 0,
+    closedJobs: 0,
+  });
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 20,
+    total: 0,
+  });
 
-  const barChartData = [
-    { category: 'Electronics', sales: 4000 },
-    { category: 'Clothing', sales: 3000 },
-    { category: 'Food', sales: 2000 },
-    { category: 'Books', sales: 2780 },
-    { category: 'Toys', sales: 1890 },
-  ];
+  const fetchDashboard = useCallback(async (page, pageSize, signal) => {
+    setLoading(true);
+    try {
+      const res = await adminAPI.getDashboard({ page, limit: pageSize }, { signal });
+      const data = res?.data || {};
 
-  const pieChartData = [
-    { name: 'Desktop', value: 400 },
-    { name: 'Mobile', value: 300 },
-    { name: 'Tablet', value: 200 },
-    { name: 'Other', value: 100 },
-  ];
+      const totalUsers = Number(data.totalUsers ?? data.usersCount ?? 0) || 0;
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+      setStats({
+        totalUsers,
+        usersCount: totalUsers,
+        adminCount: Number(data.adminCount ?? 0) || 0,
+        activeUsers: Number(data.activeUsers ?? 0) || 0,
+        totalJobs: Number(data.totalJobs ?? 0) || 0,
+        activeJobs: Number(data.activeJobs ?? 0) || 0,
+        closedJobs: Number(data.closedJobs ?? 0) || 0,
+      });
 
-  // Sample data for table
-  const tableColumns = [
+      setUsers(Array.isArray(data.users) ? data.users : []);
+
+      setPagination({
+        current: Number(data.usersPage ?? page) || page,
+        pageSize: Number(data.usersLimit ?? pageSize) || pageSize,
+        total: totalUsers,
+      });
+    } catch (error) {
+      // Ignore abort/cancel
+      if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') return;
+      console.error('Dashboard fetch error:', error);
+      message.error(error?.response?.data?.message || 'Failed to load dashboard');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchDashboard(1, 20, controller.signal);
+    return () => controller.abort();
+  }, [fetchDashboard]);
+
+  const tableColumns = useMemo(() => [
     {
-      title: 'Order ID',
-      dataIndex: 'orderId',
-      key: 'orderId',
+      title: 'Name',
+      dataIndex: 'name',
+      key: 'name',
+      width: 220,
+      render: (name) => name || <span style={{ color: '#999' }}>—</span>,
     },
     {
-      title: 'Customer',
-      dataIndex: 'customer',
-      key: 'customer',
+      title: 'Email',
+      dataIndex: 'email',
+      key: 'email',
+      width: 260,
+      render: (email) => email || <span style={{ color: '#999' }}>—</span>,
     },
     {
-      title: 'Product',
-      dataIndex: 'product',
-      key: 'product',
-    },
-    {
-      title: 'Amount',
-      dataIndex: 'amount',
-      key: 'amount',
-      render: (amount) => `$${amount}`,
+      title: 'Role',
+      dataIndex: 'role',
+      key: 'role',
+      width: 120,
+      render: (role) => <Tag color={role === 'admin' ? 'geekblue' : 'default'}>{role || 'user'}</Tag>,
     },
     {
       title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status) => {
-        const color = status === 'Completed' ? 'green' : status === 'Pending' ? 'gold' : 'red';
-        return <Tag color={color}>{status}</Tag>;
-      },
+      dataIndex: 'isActive',
+      key: 'isActive',
+      width: 120,
+      render: (isActive) => (
+        <Tag color={isActive === false ? 'red' : 'green'}>{isActive === false ? 'Inactive' : 'Active'}</Tag>
+      ),
     },
-  ];
+    {
+      title: 'Joined',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      width: 200,
+      render: (createdAt) => (createdAt ? new Date(createdAt).toLocaleString('en-IN') : <span style={{ color: '#999' }}>—</span>),
+    },
+  ], []);
 
-  const tableData = [
-    { key: '1', orderId: '#001', customer: 'John Doe', product: 'Laptop', amount: 1200, status: 'Completed' },
-    { key: '2', orderId: '#002', customer: 'Jane Smith', product: 'Phone', amount: 800, status: 'Pending' },
-    { key: '3', orderId: '#003', customer: 'Bob Johnson', product: 'Tablet', amount: 450, status: 'Completed' },
-    { key: '4', orderId: '#004', customer: 'Alice Brown', product: 'Headphones', amount: 150, status: 'Cancelled' },
-    { key: '5', orderId: '#005', customer: 'Charlie Wilson', product: 'Monitor', amount: 350, status: 'Completed' },
-  ];
+  const handleTableChange = (newPagination) => {
+    const controller = new AbortController();
+    fetchDashboard(newPagination.current, newPagination.pageSize, controller.signal);
+  };
 
   return (
     <div>
@@ -98,35 +118,8 @@ const Dashboard = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Total Revenue"
-              value={93000}
-              precision={2}
-              prefix="$"
-              suffix={<MdArrowUpward style={{ color: '#3f8600' }} />}
-              valueStyle={{ color: '#3f8600' }}
-              className="stats-card"
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Total Orders"
-              value={1234}
-              suffix={<MdArrowUpward style={{ color: '#3f8600' }} />}
-              valueStyle={{ color: '#3f8600' }}
-              prefix={<MdShoppingCart />}
-              className="stats-card"
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Total Customers"
-              value={567}
-              suffix={<MdArrowDownward style={{ color: '#cf1322' }} />}
-              valueStyle={{ color: '#cf1322' }}
+              title="Total Users"
+              value={stats.totalUsers || stats.usersCount || 0}
               prefix={<MdPeople />}
               className="stats-card"
             />
@@ -135,78 +128,52 @@ const Dashboard = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Avg Order Value"
-              value={75.5}
-              precision={2}
-              prefix="$"
-              suffix={<MdArrowUpward style={{ color: '#3f8600' }} />}
-              valueStyle={{ color: '#3f8600' }}
+              title="Active Users"
+              value={stats.activeUsers || 0}
+              prefix={<MdVerifiedUser />}
+              className="stats-card"
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Total Jobs"
+              value={stats.totalJobs || 0}
+              prefix={<MdWork />}
+              className="stats-card"
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Active Jobs"
+              value={stats.activeJobs || 0}
+              prefix={<MdWork />}
               className="stats-card"
             />
           </Card>
         </Col>
       </Row>
 
-      {/* Charts */}
       <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
-        <Col xs={24} lg={12}>
-          <Card title="Revenue & Orders Trend" bordered={false}>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={lineChartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="revenue" stroke="#8884d8" strokeWidth={2} />
-                <Line type="monotone" dataKey="orders" stroke="#82ca9d" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </Card>
-        </Col>
-        <Col xs={24} lg={12}>
-          <Card title="Sales by Category" bordered={false}>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={barChartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="category" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="sales" fill="#8884d8" />
-              </BarChart>
-            </ResponsiveContainer>
-          </Card>
-        </Col>
-      </Row>
-
-      <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
-        <Col xs={24} lg={8}>
-          <Card title="Traffic Sources" bordered={false}>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={pieChartData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {pieChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </Card>
-        </Col>
-        <Col xs={24} lg={16}>
-          <Card title="Recent Orders" bordered={false}>
-            <Table columns={tableColumns} dataSource={tableData} pagination={false} scroll={{ x: 800 }} />
+        <Col xs={24}>
+          <Card title="Latest Users" bordered={false}>
+            <Table
+              columns={tableColumns}
+              dataSource={users}
+              rowKey="_id"
+              loading={loading}
+              pagination={{
+                ...pagination,
+                showSizeChanger: true,
+                pageSizeOptions: ['10', '20', '50', '100'],
+                showTotal: (total) => `Total ${total} users`,
+              }}
+              onChange={handleTableChange}
+              scroll={{ x: 980 }}
+            />
           </Card>
         </Col>
       </Row>

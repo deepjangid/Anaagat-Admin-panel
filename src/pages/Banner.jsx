@@ -34,7 +34,7 @@ const Banner = () => {
     {
       title: 'Actions',
       key: 'actions',
-      render: (_, record) => (
+      render: () => (
         <Space>
           <Button type="primary" icon={<MdEdit />} size="small">
             Edit
