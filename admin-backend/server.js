@@ -50,7 +50,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // ✅ Handle preflight (VERY IMPORTANT)
-app.options(/.*/, cors(corsOptions));
+app.options(/.*/, cors());
 
 // ✅ Body parser
 app.use(express.json());
