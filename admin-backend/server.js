@@ -13,52 +13,17 @@ dotenv.config();
 
 const app = express();
 
-// ✅ Middlewares
-const stripWrappingQuotes = (value) => {
-  const v = String(value || "").trim();
-  if (!v) return "";
-  // Railway/Render variables sometimes get pasted with quotes.
-  const doubleQuoted = v.match(/^"(.*)"$/);
-  if (doubleQuoted) return String(doubleQuoted[1]).trim();
-  const singleQuoted = v.match(/^'(.*)'$/);
-  if (singleQuoted) return String(singleQuoted[1]).trim();
-  return v;
-};
-
-const corsOrigins = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN
-      .split(",")
-      .map((o) => stripWrappingQuotes(o))
-      .map((o) => o.trim())
-      .filter(Boolean)
-  : [];
-const corsAllowAll = corsOrigins.includes("*");
-
-const corsOptions = {
-  origin: (origin, callback) => {
-    // Allow non-browser requests (no Origin header) and allow-all when not configured.
-    if (!origin) return callback(null, true);
-    if (corsAllowAll || corsOrigins.length === 0) return callback(null, true);
-    if (corsOrigins.includes(origin)) return callback(null, true);
-    return callback(null, false);
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  optionsSuccessStatus: 204,
-};
-
+// ✅ CORS (FINAL FIX)
 app.use(cors({
-  origin: "*",
+  origin: "https://anaagat-admin-panel.vercel.app",
   credentials: true
 }));
-// Express v5 (path-to-regexp) doesn't accept "*" as a path string.
-// Use a regex to match all routes for preflight.
-app.options(/.*/, cors(corsOptions));
-app.use(express.json());
 
-// 🔍 Debug (check ENV)
-// console.log("MONGO URI:", process.env.MONGODB_URI);
+// ✅ Handle preflight (VERY IMPORTANT)
+app.options("*", cors());
+
+// ✅ Body parser
+app.use(express.json());
 
 // ✅ Routes
 app.use("/api/auth", authRoutes);
@@ -71,7 +36,7 @@ app.get("/", (req, res) => {
   res.send("🚀 Backend is running...");
 });
 
-// ✅ DB connect + server start (IMPORTANT FIX)
+// ✅ Start server
 const startServer = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
