@@ -10,10 +10,13 @@ if (!import.meta.env.DEV && !envBase && !DEFAULT_API_BASE_URL) {
   console.warn('[api] `VITE_APP_URL` is not set. Set it to your backend public URL (no `/api`).');
 }
 
-const API_BASE_URL =
-  envBase ||
-  (import.meta.env.DEV ? 'http://localhost:5000' : DEFAULT_API_BASE_URL) ||
-  'http://localhost:5000';
+const API_BASE_URL = (() => {
+  if (envBase) return envBase;
+  if (import.meta.env.DEV) return 'http://localhost:5000';
+  if (DEFAULT_API_BASE_URL) return DEFAULT_API_BASE_URL;
+  // Production build with no backend URL configured: use same-origin `/api/*`.
+  return '';
+})();
 
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
