@@ -111,6 +111,16 @@ export const adminAPI = {
   getDashboard: (params, config = {}) => api.get('/admin/dashboard', { params, ...config }),
   getUsers: (params, config = {}) => api.get('/admin/users', { params, ...config }),
   deleteUser: (id, config = {}) => api.delete(`/admin/user/${id}`, config),
+
+  getCandidateProfiles: (params, config = {}) => api.get('/admin/candidate-profiles', { params, ...config }),
+  deleteCandidateProfile: (id, config = {}) => api.delete(`/admin/candidate-profiles/${id}`, config),
+
+  getClientProfiles: (params, config = {}) => api.get('/admin/client-profiles', { params, ...config }),
+  deleteClientProfile: (id, config = {}) => api.delete(`/admin/client-profiles/${id}`, config),
+
+  getContactMessages: (params, config = {}) => api.get('/admin/contact-messages', { params, ...config }),
+  markContactMessageRead: (id, config = {}) => api.patch(`/admin/contact-messages/${id}/read`, {}, config),
+  deleteContactMessage: (id, config = {}) => api.delete(`/admin/contact-messages/${id}`, config),
 };
 
 export default api;

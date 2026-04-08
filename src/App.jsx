@@ -13,6 +13,10 @@ import Banner from './pages/Banner';
 import AboutUs from './pages/AboutUs';
 import Services from './pages/Services';
 import Faqs from './pages/Faqs';
+import CandidateProfiles from './pages/CandidateProfiles';
+import ClientProfiles from './pages/ClientProfiles';
+import ContactMessages from './pages/ContactMessages';
+import Resumes from './pages/Resumes';
 
 import './App.css';
 
@@ -57,7 +61,12 @@ function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="jobs" element={<Jobs />} />
+          <Route path="job-requirements" element={<Jobs />} />
           <Route path="applications" element={<Applications />} /> {/* ← NEW */}
+          <Route path="candidate-profiles" element={<CandidateProfiles />} />
+          <Route path="client-profiles" element={<ClientProfiles />} />
+          <Route path="contact-messages" element={<ContactMessages />} />
+          <Route path="resumes" element={<Resumes />} />
           <Route path="banner" element={<Banner />} />
           <Route path="about-us" element={<AboutUs />} />
           <Route path="services" element={<Services />} />

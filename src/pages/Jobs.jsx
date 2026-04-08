@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -13,19 +13,53 @@ import {
   DatePicker,
   message,
   Popconfirm,
+  Typography,
 } from 'antd';
 import { MdAdd, MdEdit, MdDelete, MdVisibility } from 'react-icons/md';
 import { jobsAPI } from '../services/api';
 import moment from 'moment';
 
 const { TextArea } = Input;
+const { Search } = Input;
 const { Option } = Select;
+const { Text } = Typography;
+
+const normalizeCode = (value, maxLen) => {
+  const cleaned = String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '');
+  if (!cleaned) return 'NA';
+  return cleaned.slice(0, maxLen);
+};
+
+const getShortId = (id) => {
+  const value = String(id || '');
+  if (!value) return '—';
+  return value.length > 8 ? value.slice(-8) : value;
+};
+
+const getJobPublicId = (job) => {
+  const suffix = getShortId(job?._id);
+  const company = normalizeCode(job?.company, 3);
+  const location = normalizeCode(job?.location, 3);
+  const type = normalizeCode(job?.type, 2);
+  const category = normalizeCode(job?.category, 3);
+  return `JOB-${company}-${location}-${type}-${category}-${suffix}`;
+};
 
 const Jobs = () => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
+  const [filters, setFilters] = useState({
+    search: '',
+    company: '',
+    location: '',
+    type: '',
+    category: '',
+  });
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
@@ -47,7 +81,7 @@ const Jobs = () => {
         setPagination({
           current: response.data.currentPage,
           pageSize: pageSize,
-          total: response.data.total,
+          total: response.data.total ?? (Array.isArray(response.data.jobs) ? response.data.jobs.length : 0),
         });
       }
     } catch (error) {
@@ -62,9 +96,74 @@ const Jobs = () => {
     fetchJobs();
   }, []);
 
+  const filteredJobs = useMemo(() => {
+    const search = String(filters.search || '').trim();
+    const searchLower = search.toLowerCase();
+    const isObjectIdSearch = /^[a-fA-F0-9]{24}$/.test(search);
+
+    const companyFilter = String(filters.company || '').trim().toLowerCase();
+    const locationFilter = String(filters.location || '').trim().toLowerCase();
+    const typeFilter = String(filters.type || '').trim().toLowerCase();
+    const categoryFilter = String(filters.category || '').trim().toLowerCase();
+
+    return (jobs || []).filter((job) => {
+      if (!job) return false;
+
+      if (companyFilter) {
+        const v = String(job.company || '').toLowerCase();
+        if (!v.includes(companyFilter)) return false;
+      }
+      if (locationFilter) {
+        const v = String(job.location || '').toLowerCase();
+        if (!v.includes(locationFilter)) return false;
+      }
+      if (typeFilter) {
+        const v = String(job.type || '').toLowerCase();
+        if (!v.includes(typeFilter)) return false;
+      }
+      if (categoryFilter) {
+        const v = String(job.category || '').toLowerCase();
+        if (!v.includes(categoryFilter)) return false;
+      }
+
+      if (!search) return true;
+
+      if (isObjectIdSearch) return String(job._id || '') === search;
+
+      const haystack = [
+        getJobPublicId(job),
+        job.title,
+        job.company,
+        job.location,
+        job.type,
+        job.category,
+        job.status,
+      ]
+        .filter(Boolean)
+        .map((v) => String(v).toLowerCase())
+        .join(' | ');
+
+      return haystack.includes(searchLower);
+    });
+  }, [filters, jobs]);
+
+  const filterOptions = useMemo(() => {
+    const uniq = (arr) => Array.from(new Set(arr.filter(Boolean).map((v) => String(v).trim()).filter(Boolean))).sort();
+    return {
+      companies: uniq((jobs || []).map((j) => j?.company)),
+      locations: uniq((jobs || []).map((j) => j?.location)),
+      types: uniq((jobs || []).map((j) => j?.type)),
+      categories: uniq((jobs || []).map((j) => j?.category)),
+    };
+  }, [jobs]);
+
   // Handle table change (pagination, sorting, filtering)
   const handleTableChange = (newPagination) => {
-    fetchJobs(newPagination.current, newPagination.pageSize);
+    setPagination((prev) => ({
+      ...prev,
+      current: newPagination.current,
+      pageSize: newPagination.pageSize,
+    }));
   };
 
   // Open modal for create/edit
@@ -138,6 +237,19 @@ const Jobs = () => {
 
   const columns = [
     {
+      title: 'Job ID',
+      key: 'publicId',
+      width: 220,
+      render: (_, record) => {
+        const publicId = getJobPublicId(record);
+        return (
+          <Text code copyable={{ text: publicId }}>
+            {publicId}
+          </Text>
+        );
+      },
+    },
+    {
       title: 'Title',
       dataIndex: 'title',
       key: 'title',
@@ -192,6 +304,17 @@ const Jobs = () => {
       ),
     },
     {
+      title: 'ID',
+      dataIndex: '_id',
+      key: '_id',
+      width: 220,
+      render: (id) => (
+        <Text code copyable={{ text: String(id || '') }}>
+          {String(id || '')}
+        </Text>
+      ),
+    },
+    {
       title: 'Actions',
       key: 'actions',
       fixed: 'right',
@@ -228,21 +351,107 @@ const Jobs = () => {
         className="page-header"
         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
       >
-        <h1>Jobs Management</h1>
+        <h1>Job Requirements</h1>
         <Button type="primary" icon={<MdAdd />} onClick={() => openModal()}>
           Add New Job
         </Button>
       </div>
 
+      <Card style={{ marginBottom: 16 }}>
+        <Space wrap>
+          <Search
+            placeholder="Search by Job ID/title/company/location/type/category or paste _id"
+            onSearch={(value) => {
+              setFilters((prev) => ({ ...prev, search: value ? String(value).trim() : '' }));
+              setPagination((prev) => ({ ...prev, current: 1 }));
+            }}
+            onChange={(e) => {
+              const value = e?.target?.value ?? '';
+              if (value !== '') return;
+              setFilters((prev) => ({ ...prev, search: '' }));
+              setPagination((prev) => ({ ...prev, current: 1 }));
+            }}
+            allowClear
+            style={{ width: 420 }}
+          />
+          <Select
+            value={filters.company || undefined}
+            placeholder="Company"
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            style={{ width: 200 }}
+            options={filterOptions.companies.map((v) => ({ value: v, label: v }))}
+            onChange={(value) => {
+              setFilters((prev) => ({ ...prev, company: value || '' }));
+              setPagination((prev) => ({ ...prev, current: 1 }));
+            }}
+          />
+          <Select
+            value={filters.location || undefined}
+            placeholder="Location"
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            style={{ width: 200 }}
+            options={filterOptions.locations.map((v) => ({ value: v, label: v }))}
+            onChange={(value) => {
+              setFilters((prev) => ({ ...prev, location: value || '' }));
+              setPagination((prev) => ({ ...prev, current: 1 }));
+            }}
+          />
+          <Select
+            value={filters.type || undefined}
+            placeholder="Type"
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            style={{ width: 160 }}
+            options={filterOptions.types.map((v) => ({ value: v, label: v }))}
+            onChange={(value) => {
+              setFilters((prev) => ({ ...prev, type: value || '' }));
+              setPagination((prev) => ({ ...prev, current: 1 }));
+            }}
+          />
+          <Select
+            value={filters.category || undefined}
+            placeholder="Category"
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            style={{ width: 200 }}
+            options={filterOptions.categories.map((v) => ({ value: v, label: v }))}
+            onChange={(value) => {
+              setFilters((prev) => ({ ...prev, category: value || '' }));
+              setPagination((prev) => ({ ...prev, current: 1 }));
+            }}
+          />
+          <Button
+            onClick={() => {
+              setFilters({ search: '', company: '', location: '', type: '', category: '' });
+              setPagination((prev) => ({ ...prev, current: 1 }));
+            }}
+          >
+            Clear Filters
+          </Button>
+        </Space>
+      </Card>
+
       <Card>
         <Table
           columns={columns}
-          dataSource={jobs}
+          dataSource={filteredJobs}
           rowKey="_id"
           loading={loading}
-          pagination={pagination}
+          pagination={{
+            ...pagination,
+            total: filteredJobs.length,
+            showSizeChanger: true,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            showTotal: (total) => `Total ${total} jobs`,
+          }}
           onChange={handleTableChange}
-          scroll={{ x: 1200 }}
+          scroll={{ x: 1700 }}
         />
       </Card>
 

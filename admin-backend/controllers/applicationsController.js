@@ -35,12 +35,36 @@ export const getApplications = async (req, res) => {
     const { limit, page, skip } = parsePagination(req);
     const status = req.query.status ? String(req.query.status).trim() : "";
     const search = req.query.search ? String(req.query.search).trim() : "";
+    const hasResumeRaw = req.query.hasResume;
+    const hasResume =
+      hasResumeRaw === true ||
+      hasResumeRaw === "true" ||
+      hasResumeRaw === "1" ||
+      hasResumeRaw === 1;
 
     const query = {};
     if (status) query.status = status;
 
     const searchQuery = buildSearchQuery(search);
     if (searchQuery) Object.assign(query, searchQuery);
+
+    if (hasResume) {
+      const resumeQuery = {
+        $or: [
+          { resumeData: { $exists: true, $ne: null } },
+          { resumePath: { $exists: true, $ne: null } },
+          { hasCustomResume: true },
+        ],
+      };
+
+      // If search already introduced a `$or`, combine with AND so we still enforce resume presence.
+      if (Array.isArray(query.$or) && query.$or.length > 0) {
+        query.$and = [{ $or: query.$or }, resumeQuery];
+        delete query.$or;
+      } else {
+        Object.assign(query, resumeQuery);
+      }
+    }
 
     const [total, applications] = await Promise.all([
       Application.countDocuments(query),
@@ -187,4 +211,3 @@ export const downloadApplicationResume = async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to download resume" });
   }
 };
-

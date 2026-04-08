@@ -8,6 +8,10 @@ import {
   MdQuestionAnswer,
   MdWork,
   MdPeople,   // ← NEW
+  MdPerson,
+  MdBusiness,
+  MdMail,
+  MdDescription,
   MdLogout,
 } from 'react-icons/md';
 
@@ -24,14 +28,34 @@ const Sidebar = ({ collapsed }) => {
       label: 'Dashboard',
     },
     {
-      key: '/jobs',
+      key: '/job-requirements',
       icon: <MdWork size={20} />,
-      label: 'Jobs',
+      label: 'Job Requirements',
     },
     {
       key: '/applications',       // ← NEW
       icon: <MdPeople size={20} />,
       label: 'Applications',
+    },
+    {
+      key: '/candidate-profiles',
+      icon: <MdPerson size={20} />,
+      label: 'Candidate Profiles',
+    },
+    {
+      key: '/client-profiles',
+      icon: <MdBusiness size={20} />,
+      label: 'Client Profiles',
+    },
+    {
+      key: '/contact-messages',
+      icon: <MdMail size={20} />,
+      label: 'Contact Messages',
+    },
+    {
+      key: '/resumes',
+      icon: <MdDescription size={20} />,
+      label: 'Resumes',
     },
     {
       key: '/banner',

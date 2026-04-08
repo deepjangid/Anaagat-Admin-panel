@@ -1,6 +1,10 @@
 ﻿// controllers/adminController.js
 import User from "../models/user.js";
 import Job from "../models/Job.js";
+import Application from "../models/Application.js";
+import CandidateProfile from "../models/CandidateProfile.js";
+import ClientProfile from "../models/ClientProfile.js";
+import ContactMessage from "../models/ContactMessage.js";
 import mongoose from "mongoose";
 
 export const getUsers = async (req, res) => {
@@ -71,6 +75,10 @@ export const getDashboard = async (req, res) => {
       totalJobs,
       activeJobs,
       closedJobs,
+      candidateProfiles,
+      clientProfiles,
+      contactMessages,
+      resumes,
     ] = await Promise.all([
       User.countDocuments({}),
       User.countDocuments({ role: "admin" }),
@@ -83,6 +91,16 @@ export const getDashboard = async (req, res) => {
       Job.countDocuments({}),
       Job.countDocuments({ status: { $in: ["active", "open", "Active", "ACTIVE"] } }),
       Job.countDocuments({ status: { $in: ["closed", "inactive", "close", "Closed", "CLOSED"] } }),
+      CandidateProfile.countDocuments({}),
+      ClientProfile.countDocuments({}),
+      ContactMessage.countDocuments({}),
+      Application.countDocuments({
+        $or: [
+          { resumeData: { $exists: true, $ne: null } },
+          { resumePath: { $exists: true, $ne: null } },
+          { hasCustomResume: true },
+        ],
+      }),
     ]);
 
     res.json({
@@ -97,6 +115,10 @@ export const getDashboard = async (req, res) => {
       totalJobs,
       activeJobs,
       closedJobs,
+      candidateProfiles,
+      clientProfiles,
+      contactMessages,
+      resumes,
     });
   } catch (error) {
     res.status(500).json({ message: "Dashboard error", error: String(error) });
