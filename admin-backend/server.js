@@ -48,7 +48,10 @@ const corsOptions = {
   optionsSuccessStatus: 204,
 };
 
-app.use(cors(corsOptions));
+app.use(cors({
+  origin: "*",
+  credentials: true
+}));
 // Express v5 (path-to-regexp) doesn't accept "*" as a path string.
 // Use a regex to match all routes for preflight.
 app.options(/.*/, cors(corsOptions));
