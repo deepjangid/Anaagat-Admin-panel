@@ -2,8 +2,16 @@ import axios from 'axios';
 
 import { DEFAULT_API_BASE_URL } from '../assets/Helper';
 
+const envBase = String(import.meta.env.VITE_APP_URL || '').trim().replace(/\/+$/, '');
+
+if (!import.meta.env.DEV && !envBase && !DEFAULT_API_BASE_URL) {
+  // If this happens in a deployed build, your host didn't rebuild with `VITE_APP_URL`.
+  // API calls will go to same-origin `/api/*` which usually fails unless you have a proxy.
+  console.warn('[api] `VITE_APP_URL` is not set. Set it to your backend public URL (no `/api`).');
+}
+
 const API_BASE_URL =
-  import.meta.env.VITE_APP_URL ||
+  envBase ||
   (import.meta.env.DEV ? 'http://localhost:5000' : DEFAULT_API_BASE_URL) ||
   'http://localhost:5000';
 

@@ -34,6 +34,7 @@ From repo root:
 3. Environment variables (Vercel → Settings → Environment Variables):
    - `VITE_APP_URL` = your Railway backend URL (no trailing `/api`)
      - Example: `https://your-backend.up.railway.app`
+     - Note: `VITE_APP_URL` is baked at build time â€” redeploy after changing it.
 4. Deploy.
 
 ## 4) Connect both (CORS + API base URL)
