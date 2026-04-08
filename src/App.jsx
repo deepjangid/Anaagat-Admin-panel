@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Layout } from 'antd';
 import { useState } from 'react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -53,29 +54,32 @@ const AdminLayout = () => {
 
 function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
+    <>
+      <Routes>
+        <Route path="/login" element={<Login />} />
 
-      <Route element={<ProtectedRoute />}>
-        <Route element={<AdminLayout />}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="jobs" element={<Jobs />} />
-          <Route path="job-requirements" element={<Jobs />} />
-          <Route path="applications" element={<Applications />} /> {/* ← NEW */}
-          <Route path="candidate-profiles" element={<CandidateProfiles />} />
-          <Route path="client-profiles" element={<ClientProfiles />} />
-          <Route path="contact-messages" element={<ContactMessages />} />
-          <Route path="resumes" element={<Resumes />} />
-          <Route path="banner" element={<Banner />} />
-          <Route path="about-us" element={<AboutUs />} />
-          <Route path="services" element={<Services />} />
-          <Route path="faqs" element={<Faqs />} />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AdminLayout />}>
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="jobs" element={<Jobs />} />
+            <Route path="job-requirements" element={<Jobs />} />
+            <Route path="applications" element={<Applications />} /> {/* ← NEW */}
+            <Route path="candidate-profiles" element={<CandidateProfiles />} />
+            <Route path="client-profiles" element={<ClientProfiles />} />
+            <Route path="contact-messages" element={<ContactMessages />} />
+            <Route path="resumes" element={<Resumes />} />
+            <Route path="banner" element={<Banner />} />
+            <Route path="about-us" element={<AboutUs />} />
+            <Route path="services" element={<Services />} />
+            <Route path="faqs" element={<Faqs />} />
+          </Route>
         </Route>
-      </Route>
 
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+      <SpeedInsights />
+    </>
   );
 }
 
