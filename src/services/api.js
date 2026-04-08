@@ -1,16 +1,32 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 
 import { DEFAULT_API_BASE_URL } from '../assets/Helper';
 
 const envBase = String(import.meta.env.VITE_APP_URL || '').trim().replace(/\/+$/, '');
 
-if (!import.meta.env.DEV && !envBase && !DEFAULT_API_BASE_URL) {
+const shouldUseSameOriginProxy = (() => {
+  const forceProxy = String(import.meta.env.VITE_FORCE_SAME_ORIGIN_API || '')
+    .trim()
+    .toLowerCase();
+  if (forceProxy === 'true' || forceProxy === '1' || forceProxy === 'yes') return true;
+
+  // Auto-enable same-origin proxy on Vercel to avoid CORS when `vercel.json` rewrites `/api/*`.
+  if (!import.meta.env.PROD) return false;
+  if (typeof window === 'undefined') return false;
+  const host = String(window.location.hostname || '').toLowerCase();
+  return host === 'anaagat-admin-panel.vercel.app' || host.endsWith('.vercel.app');
+})();
+
+if (!import.meta.env.DEV && !envBase && !DEFAULT_API_BASE_URL && !shouldUseSameOriginProxy) {
   // If this happens in a deployed build, your host didn't rebuild with `VITE_APP_URL`.
-  // API calls will go to same-origin `/api/*` which usually fails unless you have a proxy.
-  console.warn('[api] `VITE_APP_URL` is not set. Set it to your backend public URL (no `/api`).');
+  // API calls will go to same-origin `/api/*` which fails unless you have a proxy/rewrite configured.
+  console.warn(
+    '[api] `VITE_APP_URL` is not set. Set it to your backend public URL (no `/api`) or enable a same-origin `/api/*` proxy (e.g. Vercel rewrites).'
+  );
 }
 
 const API_BASE_URL = (() => {
+  if (shouldUseSameOriginProxy) return '';
   if (envBase) return envBase;
   if (import.meta.env.DEV) return 'http://localhost:5000';
   if (DEFAULT_API_BASE_URL) return DEFAULT_API_BASE_URL;
@@ -21,7 +37,8 @@ const API_BASE_URL = (() => {
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
   timeout: 15000,
-  withCredentials: true, // 🔥 ADD THIS
+  // Default false (this app uses Authorization header tokens). Enable only if you use cookies/sessions.
+  withCredentials: String(import.meta.env.VITE_WITH_CREDENTIALS || '').trim() === 'true',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -63,7 +80,7 @@ api.interceptors.response.use(
   }
 );
 
-// ─── AUTH ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ AUTH â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
   register: (userData) => api.post('/auth/register', userData),
@@ -71,7 +88,7 @@ export const authAPI = {
   logout: () => api.post('/auth/logout'),
 };
 
-// ─── JOBS ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ JOBS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // GET ALL JOBS
 export const jobsAPI = {
   getAll: (params) => api.get("/jobs", { params }),
@@ -80,7 +97,7 @@ export const jobsAPI = {
   delete: (id) => api.delete(`/jobs/${id}`),
 };
 
-// ─── APPLICATIONS ────────────────────────────────────────────────────────────
+// â”€â”€â”€ APPLICATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const applicationsAPI = {
   // List with optional ?page=&limit=&status=&search=
   getAll: (params, config = {}) => api.get('/applications', { params, ...config }),
@@ -88,7 +105,7 @@ export const applicationsAPI = {
   // Single application detail
   getById: (id, config = {}) => api.get(`/applications/${id}`, config),
 
-  // Download resume — returns a blob, so we configure responseType here
+  // Download resume â€” returns a blob, so we configure responseType here
   downloadResume: (id, applicantName) =>
     api.get(`/applications/${id}/resume`, { responseType: 'blob' }).then((res) => {
       const url = window.URL.createObjectURL(new Blob([res.data]));
