@@ -4,8 +4,6 @@ import { useState } from 'react';
 
 const { TextArea } = Input;
 
-
-
 const AboutUs = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
