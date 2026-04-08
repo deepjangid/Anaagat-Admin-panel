@@ -22,7 +22,7 @@ From repo root:
    - `PORT` = `5000` (Railway may override; keep if needed)
    - `MONGODB_URI` = your MongoDB Atlas / cloud URI (or Railway Mongo plugin URI)
    - `JWT_ACCESS_SECRET` = long random secret
-   - `CORS_ORIGIN` = your frontend URL(s), comma-separated (Vercel and/or Railway)
+   - `CORS_ORIGIN` = your frontend URL(s), comma-separated (Vercel and/or Railway) — **no quotes**
      - Example: `https://your-frontend.vercel.app,https://your-frontend.up.railway.app`
      - For debugging only: `CORS_ORIGIN=*` (allow all origins)
 5. Deploy. Copy the Railway public URL, e.g. `https://your-backend.up.railway.app`

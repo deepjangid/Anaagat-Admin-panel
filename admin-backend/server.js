@@ -14,8 +14,23 @@ dotenv.config();
 const app = express();
 
 // ✅ Middlewares
+const stripWrappingQuotes = (value) => {
+  const v = String(value || "").trim();
+  if (!v) return "";
+  // Railway/Render variables sometimes get pasted with quotes.
+  const doubleQuoted = v.match(/^"(.*)"$/);
+  if (doubleQuoted) return String(doubleQuoted[1]).trim();
+  const singleQuoted = v.match(/^'(.*)'$/);
+  if (singleQuoted) return String(singleQuoted[1]).trim();
+  return v;
+};
+
 const corsOrigins = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim()).filter(Boolean)
+  ? process.env.CORS_ORIGIN
+      .split(",")
+      .map((o) => stripWrappingQuotes(o))
+      .map((o) => o.trim())
+      .filter(Boolean)
   : [];
 const corsAllowAll = corsOrigins.includes("*");
 
