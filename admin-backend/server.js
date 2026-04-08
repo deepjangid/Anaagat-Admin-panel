@@ -17,17 +17,26 @@ const app = express();
 const corsOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim()).filter(Boolean)
   : [];
+const corsAllowAll = corsOrigins.includes("*");
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow non-browser requests (no Origin header) and allow-all when not configured.
-      if (!origin || corsOrigins.length === 0) return callback(null, true);
-      if (corsOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error("Not allowed by CORS"));
-    },
-  })
-);
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow non-browser requests (no Origin header) and allow-all when not configured.
+    if (!origin) return callback(null, true);
+    if (corsAllowAll || corsOrigins.length === 0) return callback(null, true);
+    if (corsOrigins.includes(origin)) return callback(null, true);
+    return callback(null, false);
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+// Express v5 (path-to-regexp) doesn't accept "*" as a path string.
+// Use a regex to match all routes for preflight.
+app.options(/.*/, cors(corsOptions));
 app.use(express.json());
 
 // 🔍 Debug (check ENV)

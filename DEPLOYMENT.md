@@ -22,7 +22,9 @@ From repo root:
    - `PORT` = `5000` (Railway may override; keep if needed)
    - `MONGODB_URI` = your MongoDB Atlas / cloud URI (or Railway Mongo plugin URI)
    - `JWT_ACCESS_SECRET` = long random secret
-   - `CORS_ORIGIN` = your Vercel frontend URL (comma-separated if multiple)
+   - `CORS_ORIGIN` = your frontend URL(s), comma-separated (Vercel and/or Railway)
+     - Example: `https://your-frontend.vercel.app,https://your-frontend.up.railway.app`
+     - For debugging only: `CORS_ORIGIN=*` (allow all origins)
 5. Deploy. Copy the Railway public URL, e.g. `https://your-backend.up.railway.app`
 
 ## 3) Deploy frontend to Vercel
@@ -37,8 +39,7 @@ From repo root:
 ## 4) Connect both (CORS + API base URL)
 
 After both are deployed:
-- Railway: set `CORS_ORIGIN` to your Vercel domain(s)
+- Railway: set `CORS_ORIGIN` to your frontend domain(s)
 - Vercel: set `VITE_APP_URL` to your Railway domain
 
 Re-deploy/restart both after changing env vars.
-
