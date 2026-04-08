@@ -14,13 +14,43 @@ dotenv.config();
 const app = express();
 
 // ✅ CORS (FINAL FIX)
-app.use(cors({
-  origin: "https://anaagat-admin-panel.vercel.app",
-  credentials: true
-}));
+const stripWrappingQuotes = (value) => {
+  const v = String(value || "").trim();
+  if (!v) return "";
+  const doubleQuoted = v.match(/^"(.*)"$/);
+  if (doubleQuoted) return String(doubleQuoted[1]).trim();
+  const singleQuoted = v.match(/^'(.*)'$/);
+  if (singleQuoted) return String(singleQuoted[1]).trim();
+  return v;
+};
+
+const corsOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN
+      .split(",")
+      .map((o) => stripWrappingQuotes(o))
+      .map((o) => o.trim())
+      .filter(Boolean)
+  : [];
+const corsAllowAll = corsOrigins.includes("*");
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (corsAllowAll || corsOrigins.length === 0) return callback(null, true);
+    if (corsOrigins.includes(origin)) return callback(null, true);
+    console.warn("[cors] blocked origin:", origin, "allowed:", corsOrigins);
+    return callback(null, false);
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
 
 // ✅ Handle preflight (VERY IMPORTANT)
-app.options(/.*/, cors());
+app.options(/.*/, cors(corsOptions));
 
 // ✅ Body parser
 app.use(express.json());
@@ -37,6 +67,10 @@ app.get("/", (req, res) => {
 });
 
 // ✅ Start server
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: "Route not found" });
+});
+
 const startServer = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
