@@ -12,6 +12,7 @@ import {
   MdBusiness,
   MdMail,
   MdDescription,
+  MdArticle,
   MdLogout,
 } from 'react-icons/md';
 
@@ -76,6 +77,11 @@ const Sidebar = ({ collapsed }) => {
       key: '/faqs',
       icon: <MdQuestionAnswer size={20} />,
       label: 'FAQs',
+    },
+    {
+      key: '/blogs',
+      icon: <MdArticle size={20} />,
+      label: 'Blogs',
     },
   ];
 

@@ -48,6 +48,70 @@ const getJobPublicId = (job) => {
   return `JOB-${company}-${location}-${type}-${category}-${suffix}`;
 };
 
+const getGenderCode = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return 'ANY';
+  if (normalized.startsWith('m')) return 'M';
+  if (normalized.startsWith('f')) return 'F';
+  if (normalized.startsWith('b')) return 'B';
+  return normalizeCode(normalized, 3);
+};
+
+const getQualificationCode = (value) => {
+  const normalized = String(value || '').trim().toUpperCase();
+  if (!normalized) return 'NA';
+  if (/\b10\b|\b10TH\b/.test(normalized)) return '10';
+  if (/\b12\b|\b12TH\b/.test(normalized)) return '12';
+  return normalizeCode(normalized, 3);
+};
+
+const getExperienceCode = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return 'NA';
+  if (normalized.includes('fresher') || normalized === '0' || normalized.startsWith('0-')) {
+    return 'FR';
+  }
+  return normalizeCode(normalized, 3);
+};
+
+const getPriceCode = (job) => {
+  const fixedPrice = job?.fixedPrice;
+  if (fixedPrice !== undefined && fixedPrice !== null && fixedPrice !== '') {
+    return `FX${String(fixedPrice).replace(/[^0-9]/g, '').slice(0, 4) || '0'}`;
+  }
+  const maxSalary = job?.salary?.max ?? job?.salary?.min;
+  if (maxSalary !== undefined && maxSalary !== null && maxSalary !== '') {
+    return `SL${String(maxSalary).replace(/[^0-9]/g, '').slice(0, 4) || '0'}`;
+  }
+  return 'PAY';
+};
+
+const getEnhancedJobPublicId = (job) => {
+  const suffix = getShortId(job?._id);
+  const company = normalizeCode(job?.company, 3);
+  const gender = getGenderCode(job?.genderRequirement);
+  const qualification = getQualificationCode(job?.qualification);
+  const price = getPriceCode(job);
+  const experience = getExperienceCode(job?.experience);
+  const location = normalizeCode(job?.location, 3);
+  const type = normalizeCode(job?.type, 2);
+  const age = normalizeCode(job?.ageRequirement, 3);
+  return `JOB-${company}-${gender}-${qualification}-${price}-${experience}-${location}-${type}-${age}-${suffix}`;
+};
+
+const getJobMetaLine = (job) =>
+  [
+    `Gender: ${job?.genderRequirement || 'Any'}`,
+    `Qualification: ${job?.qualification || 'NA'}`,
+    `Experience: ${job?.experience || 'NA'}`,
+    `Price: ${
+      job?.fixedPrice !== undefined && job?.fixedPrice !== null && job?.fixedPrice !== ''
+        ? `Fixed ${job.fixedPrice}`
+        : 'Not set'
+    }`,
+    `Age: ${job?.ageRequirement || 'NA'}`,
+  ].join(' | ');
+
 const Jobs = () => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -131,7 +195,11 @@ const Jobs = () => {
       if (isObjectIdSearch) return String(job._id || '') === search;
 
       const haystack = [
-        getJobPublicId(job),
+        getEnhancedJobPublicId(job),
+        job.genderRequirement,
+        job.qualification,
+        job.experience,
+        job.ageRequirement,
         job.title,
         job.company,
         job.location,
@@ -241,11 +309,16 @@ const Jobs = () => {
       key: 'publicId',
       width: 220,
       render: (_, record) => {
-        const publicId = getJobPublicId(record);
+        const publicId = getEnhancedJobPublicId(record);
         return (
-          <Text code copyable={{ text: publicId }}>
-            {publicId}
-          </Text>
+          <Space direction="vertical" size={0}>
+            <Text code copyable={{ text: publicId }}>
+              {publicId}
+            </Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {getJobMetaLine(record)}
+            </Text>
+          </Space>
         );
       },
     },
@@ -279,6 +352,19 @@ const Jobs = () => {
       dataIndex: 'category',
       key: 'category',
       width: 120,
+    },
+    {
+      title: 'Profile',
+      key: 'profile',
+      width: 260,
+      render: (_, record) => (
+        <Space direction="vertical" size={0}>
+          <Text>{record.genderRequirement || 'Any'} / {record.qualification || 'NA'}</Text>
+          <Text type="secondary">
+            {record.experience || 'NA'} / {record.ageRequirement || 'NA'}
+          </Text>
+        </Space>
+      ),
     },
     {
       title: 'Status',
@@ -360,7 +446,7 @@ const Jobs = () => {
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>
           <Search
-            placeholder="Search by Job ID/title/company/location/type/category or paste _id"
+            placeholder="Search by Job ID/title/company/location/gender/qualification/type or paste _id"
             onSearch={(value) => {
               setFilters((prev) => ({ ...prev, search: value ? String(value).trim() : '' }));
               setPagination((prev) => ({ ...prev, current: 1 }));
@@ -451,7 +537,7 @@ const Jobs = () => {
             showTotal: (total) => `Total ${total} jobs`,
           }}
           onChange={handleTableChange}
-          scroll={{ x: 1700 }}
+          scroll={{ x: 2000 }}
         />
       </Card>
 
@@ -506,7 +592,26 @@ const Jobs = () => {
             name="experience"
             rules={[{ required: true, message: 'Please enter experience level' }]}
           >
-            <Input placeholder="e.g., 3-5 years" />
+            <Input placeholder="e.g., Fresher / 1-2 years / 3-5 years" />
+          </Form.Item>
+
+          <Form.Item
+            label="Gender Requirement"
+            name="genderRequirement"
+          >
+            <Select placeholder="Select gender requirement" allowClear>
+              <Option value="Any">Any</Option>
+              <Option value="Male">Male</Option>
+              <Option value="Female">Female</Option>
+              <Option value="Both">Both</Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            label="Qualification"
+            name="qualification"
+          >
+            <Input placeholder="e.g., 10th / 12th / Graduate / B.Tech" />
           </Form.Item>
 
           <Form.Item
@@ -535,6 +640,20 @@ const Jobs = () => {
                 </Select>
               </Form.Item>
             </Space>
+          </Form.Item>
+
+          <Form.Item
+            label="Fixed Price"
+            name="fixedPrice"
+          >
+            <InputNumber placeholder="e.g., 15000" style={{ width: '100%' }} />
+          </Form.Item>
+
+          <Form.Item
+            label="Age Requirement"
+            name="ageRequirement"
+          >
+            <Input placeholder="e.g., 18-25" />
           </Form.Item>
 
           <Form.Item

@@ -8,6 +8,22 @@ const jobSchema = new mongoose.Schema(
     location: String,
     type: String,
     category: String,
+    genderRequirement: String,
+    qualification: String,
+    experience: String,
+    fixedPrice: Number,
+    ageRequirement: String,
+    salary: {
+      min: Number,
+      max: Number,
+      currency: String,
+    },
+    description: String,
+    requirements: [String],
+    responsibilities: [String],
+    skills: [String],
+    applicationDeadline: Date,
+    contactEmail: String,
 
     // Backward/legacy fields (some clients send these keys)
     jobTitle: String,

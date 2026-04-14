@@ -9,6 +9,11 @@ const normalizeStatus = (status) => {
   return value;
 };
 
+const normalizeStringArray = (value) => {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => String(item || "").trim()).filter(Boolean);
+};
+
 const formatJobForFrontend = (job) => {
   const raw = job?.toObject ? job.toObject() : job;
 
@@ -26,6 +31,18 @@ const formatJobForFrontend = (job) => {
     location,
     type,
     category,
+    genderRequirement: raw?.genderRequirement ?? "",
+    qualification: raw?.qualification ?? "",
+    experience: raw?.experience ?? "",
+    fixedPrice: raw?.fixedPrice ?? null,
+    ageRequirement: raw?.ageRequirement ?? "",
+    salary: raw?.salary ?? null,
+    description: raw?.description ?? "",
+    requirements: Array.isArray(raw?.requirements) ? raw.requirements : [],
+    responsibilities: Array.isArray(raw?.responsibilities) ? raw.responsibilities : [],
+    skills: Array.isArray(raw?.skills) ? raw.skills : [],
+    applicationDeadline: raw?.applicationDeadline ?? null,
+    contactEmail: raw?.contactEmail ?? "",
     status: status === "active" ? "Active" : "Closed",
     viewCount: raw?.viewCount || 0,
   };
@@ -39,6 +56,23 @@ const normalizeJobPayload = (payload = {}) => {
   const location = body.location ?? body.jobLocation;
   const type = body.type ?? body.employmentType;
   const category = body.category ?? body.department;
+  const fixedPrice =
+    body.fixedPrice === undefined || body.fixedPrice === null || body.fixedPrice === ""
+      ? undefined
+      : Number(body.fixedPrice);
+  const salary = body.salary && typeof body.salary === "object"
+    ? {
+        ...(body.salary.min !== undefined && body.salary.min !== null && body.salary.min !== ""
+          ? { min: Number(body.salary.min) }
+          : {}),
+        ...(body.salary.max !== undefined && body.salary.max !== null && body.salary.max !== ""
+          ? { max: Number(body.salary.max) }
+          : {}),
+        ...(body.salary.currency !== undefined
+          ? { currency: String(body.salary.currency || "").trim() }
+          : {}),
+      }
+    : undefined;
 
   return {
     ...(title !== undefined ? { title } : {}),
@@ -46,6 +80,32 @@ const normalizeJobPayload = (payload = {}) => {
     ...(location !== undefined ? { location } : {}),
     ...(type !== undefined ? { type } : {}),
     ...(category !== undefined ? { category } : {}),
+    ...(body.genderRequirement !== undefined
+      ? { genderRequirement: String(body.genderRequirement || "").trim() }
+      : {}),
+    ...(body.qualification !== undefined
+      ? { qualification: String(body.qualification || "").trim() }
+      : {}),
+    ...(body.experience !== undefined
+      ? { experience: String(body.experience || "").trim() }
+      : {}),
+    ...(fixedPrice !== undefined && Number.isFinite(fixedPrice) ? { fixedPrice } : {}),
+    ...(body.ageRequirement !== undefined
+      ? { ageRequirement: String(body.ageRequirement || "").trim() }
+      : {}),
+    ...(salary !== undefined ? { salary } : {}),
+    ...(body.description !== undefined ? { description: String(body.description || "") } : {}),
+    ...(body.requirements !== undefined ? { requirements: normalizeStringArray(body.requirements) } : {}),
+    ...(body.responsibilities !== undefined
+      ? { responsibilities: normalizeStringArray(body.responsibilities) }
+      : {}),
+    ...(body.skills !== undefined ? { skills: normalizeStringArray(body.skills) } : {}),
+    ...(body.applicationDeadline !== undefined
+      ? { applicationDeadline: body.applicationDeadline || null }
+      : {}),
+    ...(body.contactEmail !== undefined
+      ? { contactEmail: String(body.contactEmail || "").trim() }
+      : {}),
 
     ...(body.jobTitle !== undefined ? { jobTitle: body.jobTitle } : {}),
     ...(body.department !== undefined ? { department: body.department } : {}),

@@ -9,14 +9,15 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Jobs from './pages/Jobs';
 import Applications from './pages/ApplicationsPage';
-import Banner from './pages/Banner';
-import AboutUs from './pages/AboutUs';
-import Services from './pages/Services';
-import Faqs from './pages/Faqs';
-import CandidateProfiles from './pages/CandidateProfiles';
-import ClientProfiles from './pages/ClientProfiles';
+import BannerPage from './pages/BannerPage';
+import AboutUsPage from './pages/AboutUsPage';
+import ServicesPage from './pages/ServicesPage';
+import FaqsPage from './pages/FaqsPage';
+import CandidateProfilesPage from './pages/CandidateProfilesPage';
+import ClientProfilesPage from './pages/ClientProfilesPage';
 import ContactMessages from './pages/ContactMessages';
 import Resumes from './pages/Resumes';
+import Blogs from './pages/Blogs';
 
 import './App.css';
 
@@ -63,14 +64,15 @@ function App() {
           <Route path="jobs" element={<Jobs />} />
           <Route path="job-requirements" element={<Jobs />} />
           <Route path="applications" element={<Applications />} /> {/* ← NEW */}
-          <Route path="candidate-profiles" element={<CandidateProfiles />} />
-          <Route path="client-profiles" element={<ClientProfiles />} />
+          <Route path="candidate-profiles" element={<CandidateProfilesPage />} />
+          <Route path="client-profiles" element={<ClientProfilesPage />} />
           <Route path="contact-messages" element={<ContactMessages />} />
           <Route path="resumes" element={<Resumes />} />
-          <Route path="banner" element={<Banner />} />
-          <Route path="about-us" element={<AboutUs />} />
-          <Route path="services" element={<Services />} />
-          <Route path="faqs" element={<Faqs />} />
+          <Route path="banner" element={<BannerPage />} />
+          <Route path="about-us" element={<AboutUsPage />} />
+          <Route path="services" element={<ServicesPage />} />
+          <Route path="faqs" element={<FaqsPage />} />
+          <Route path="blogs" element={<Blogs />} />
         </Route>
       </Route>
 
