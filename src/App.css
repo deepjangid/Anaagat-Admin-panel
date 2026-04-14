@@ -102,6 +102,37 @@ body {
   font-weight: 600;
 }
 
+.admin-surface-card {
+  border: 1px solid #e6ecf5;
+  border-radius: 16px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+}
+
+.admin-avatar {
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  color: #1d4ed8;
+}
+
+.admin-table-title {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.admin-table-subtitle {
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.admin-clamp-two {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 .chart-container {
   margin-top: 16px;
 }

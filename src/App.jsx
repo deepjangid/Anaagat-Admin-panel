@@ -6,16 +6,16 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
+import Dashboard from './pages/DashboardPanel';
 import Jobs from './pages/Jobs';
-import Applications from './pages/ApplicationsPage';
+import Applications from './pages/ApplicationsOverview';
 import BannerPage from './pages/BannerPage';
 import AboutUsPage from './pages/AboutUsPage';
 import ServicesPage from './pages/ServicesPage';
 import FaqsPage from './pages/FaqsPage';
-import CandidateProfilesPage from './pages/CandidateProfilesPage';
-import ClientProfilesPage from './pages/ClientProfilesPage';
-import ContactMessages from './pages/ContactMessages';
+import CandidateProfilesPage from './pages/CandidateProfilesView';
+import ClientProfilesPage from './pages/ClientProfilesView';
+import ContactMessages from './pages/ContactMessagesView';
 import Resumes from './pages/Resumes';
 import Blogs from './pages/Blogs';
 

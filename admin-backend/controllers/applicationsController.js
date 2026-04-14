@@ -26,7 +26,23 @@ const buildSearchQuery = (search) => {
   const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const rx = new RegExp(escaped, "i");
   return {
-    $or: [{ fullName: rx }, { email: rx }, { phone: rx }, { currentCity: rx }],
+    $or: [
+      { fullName: rx },
+      { name: rx },
+      { email: rx },
+      { phone: rx },
+      { currentCity: rx },
+      { qualification: rx },
+      { college: rx },
+      { jobTitle: rx },
+      { appliedFor: rx },
+      { appliedJobTitle: rx },
+      { position: rx },
+      { jobRole: rx },
+      { desiredRole: rx },
+      { profile: rx },
+      { title: rx },
+    ],
   };
 };
 
