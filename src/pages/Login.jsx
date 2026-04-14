@@ -26,11 +26,14 @@ const Login = () => {
     } catch (error) {
       console.error('Login error:', error);
 
-      message.error(
+      const errorMessage =
         error.response?.data?.msg ||
         error.response?.data?.message ||
-        'Login failed. Please try again.'
-      );
+        (error.request
+          ? 'Backend unavailable. Check that the server is running and MongoDB is connected.'
+          : 'Login failed. Please try again.');
+
+      message.error(errorMessage);
     } finally {
       setLoading(false);
     }

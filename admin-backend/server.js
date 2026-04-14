@@ -2,13 +2,19 @@
 import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 
 import authRoutes from "./routes/authRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import jobRoutes from "./routes/jobRoutes.js";
 import applicationsRoutes from "./routes/applicationsRoutes.js";
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.join(__dirname, ".env") });
+dotenv.config({ path: path.join(__dirname, "..", ".env"), override: false });
 
 const app = express();
 
@@ -86,7 +92,15 @@ app.use((req, res) => {
 
 const startServer = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
+    const mongoUri = stripWrappingQuotes(process.env.MONGODB_URI);
+
+    if (!mongoUri) {
+      throw new Error(
+        "Missing MONGODB_URI. Add it to admin-backend/.env or the project root .env."
+      );
+    }
+
+    await mongoose.connect(mongoUri);
 
     console.log("MongoDB connected", mongoose.connection.name);
 
@@ -95,7 +109,7 @@ const startServer = async () => {
       console.log(`Server running on port ${PORT}`);
     });
   } catch (err) {
-    console.error("DB connection error:", err);
+    console.error("DB connection error:", err.message || err);
   }
 };
 
