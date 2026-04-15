@@ -9,6 +9,17 @@ const ALLOWED_STATUSES = new Set([
   "hired",
 ]);
 
+const normalizeString = (value) =>
+  value === undefined || value === null ? undefined : String(value).trim();
+
+const normalizeExperience = (value) => {
+  if (Array.isArray(value)) return value;
+  const text = String(value || "").trim();
+  if (!text) return [];
+  if (text.toLowerCase() === "fresher") return [];
+  return [{ jobProfile: text }];
+};
+
 const parsePagination = (req) => {
   const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 100);
   const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
@@ -85,6 +96,8 @@ export const getApplications = async (req, res) => {
     const [total, applications] = await Promise.all([
       Application.countDocuments(query),
       Application.find(query)
+        .populate("jobId", "title jobTitle")
+        .populate("openingId", "title jobTitle")
         .sort({ submittedAt: -1, createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -107,7 +120,10 @@ export const getApplications = async (req, res) => {
 
 export const getApplicationById = async (req, res) => {
   try {
-    const application = await Application.findById(req.params.id).lean();
+    const application = await Application.findById(req.params.id)
+      .populate("jobId", "title jobTitle")
+      .populate("openingId", "title jobTitle")
+      .lean();
     if (!application) return res.status(404).json({ success: false, message: "Not found" });
     res.json({ success: true, application });
   } catch (error) {
@@ -154,7 +170,7 @@ export const updateApplicationStatus = async (req, res) => {
     const application = await Application.findByIdAndUpdate(
       req.params.id,
       { status },
-      { new: true }
+      { returnDocument: "after" }
     ).lean();
 
     if (!application) return res.status(404).json({ success: false, message: "Not found" });
@@ -171,7 +187,7 @@ export const updateApplicationNotes = async (req, res) => {
     const application = await Application.findByIdAndUpdate(
       req.params.id,
       { notes },
-      { new: true }
+      { returnDocument: "after" }
     ).lean();
 
     if (!application) return res.status(404).json({ success: false, message: "Not found" });
@@ -179,6 +195,38 @@ export const updateApplicationNotes = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Failed to update notes" });
+  }
+};
+
+export const updateApplication = async (req, res) => {
+  try {
+    const payload = {
+      ...(normalizeString(req.body?.fullName) !== undefined ? { fullName: normalizeString(req.body.fullName) } : {}),
+      ...(normalizeString(req.body?.email) !== undefined ? { email: normalizeString(req.body.email).toLowerCase() } : {}),
+      ...(normalizeString(req.body?.phone) !== undefined ? { phone: normalizeString(req.body.phone) } : {}),
+      ...(normalizeString(req.body?.jobTitle) !== undefined ? { jobTitle: normalizeString(req.body.jobTitle) } : {}),
+      ...(normalizeString(req.body?.appliedFor) !== undefined ? { appliedFor: normalizeString(req.body.appliedFor) } : {}),
+      ...(normalizeString(req.body?.position) !== undefined ? { position: normalizeString(req.body.position) } : {}),
+      ...(normalizeString(req.body?.qualification) !== undefined ? { qualification: normalizeString(req.body.qualification) } : {}),
+      ...(normalizeString(req.body?.college) !== undefined ? { college: normalizeString(req.body.college) } : {}),
+      ...(normalizeString(req.body?.currentCity) !== undefined ? { currentCity: normalizeString(req.body.currentCity) } : {}),
+      ...(req.body?.experience !== undefined ? { experience: normalizeExperience(req.body.experience) } : {}),
+    };
+
+    const application = await Application.findByIdAndUpdate(
+      req.params.id,
+      payload,
+      { returnDocument: "after" }
+    )
+      .populate("jobId", "title jobTitle")
+      .populate("openingId", "title jobTitle")
+      .lean();
+
+    if (!application) return res.status(404).json({ success: false, message: "Not found" });
+    res.json({ success: true, application });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Failed to update application" });
   }
 };
 

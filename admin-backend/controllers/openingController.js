@@ -1,5 +1,4 @@
-﻿// controllers/jobController.js
-import Job from "../models/Job.js";
+import Opening from "../models/Opening.js";
 
 const normalizeStatus = (status) => {
   if (!status) return "active";
@@ -14,8 +13,8 @@ const normalizeStringArray = (value) => {
   return value.map((item) => String(item || "").trim()).filter(Boolean);
 };
 
-const formatJobForFrontend = (job) => {
-  const raw = job?.toObject ? job.toObject() : job;
+const formatOpeningForFrontend = (opening) => {
+  const raw = opening?.toObject ? opening.toObject() : opening;
 
   const title = raw?.title ?? raw?.jobTitle ?? "";
   const company = raw?.company ?? raw?.department ?? "";
@@ -48,7 +47,7 @@ const formatJobForFrontend = (job) => {
   };
 };
 
-const normalizeJobPayload = (payload = {}) => {
+const normalizeOpeningPayload = (payload = {}) => {
   const body = payload && typeof payload === "object" ? payload : {};
 
   const title = body.title ?? body.jobTitle;
@@ -106,81 +105,75 @@ const normalizeJobPayload = (payload = {}) => {
     ...(body.contactEmail !== undefined
       ? { contactEmail: String(body.contactEmail || "").trim() }
       : {}),
-
     ...(body.jobTitle !== undefined ? { jobTitle: body.jobTitle } : {}),
     ...(body.department !== undefined ? { department: body.department } : {}),
     ...(body.jobLocation !== undefined ? { jobLocation: body.jobLocation } : {}),
     ...(body.employmentType !== undefined ? { employmentType: body.employmentType } : {}),
-
     ...(body.status !== undefined ? { status: normalizeStatus(body.status) } : {}),
     ...(body.viewCount !== undefined ? { viewCount: body.viewCount } : {}),
   };
 };
 
-// ✅ GET ALL JOBS
-export const getJobs = async (req, res) => {
+export const getOpenings = async (req, res) => {
   try {
-    const jobsData = await Job.find();
-    const formattedJobs = jobsData.map(formatJobForFrontend);
+    const openingsData = await Opening.find();
+    const formattedOpenings = openingsData.map(formatOpeningForFrontend);
 
     res.json({
       success: true,
-      jobs: formattedJobs,
-      data: formattedJobs,
-      total: formattedJobs.length,
+      jobs: formattedOpenings,
+      data: formattedOpenings,
+      total: formattedOpenings.length,
       currentPage: 1,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Error fetching jobs" });
+    res.status(500).json({ message: "Error fetching openings" });
   }
 };
 
-// ✅ CREATE JOB
-export const createJob = async (req, res) => {
+export const createOpening = async (req, res) => {
   try {
-    const job = await Job.create(normalizeJobPayload(req.body));
+    const opening = await Opening.create(normalizeOpeningPayload(req.body));
 
     res.json({
       success: true,
-      message: "Job created",
-      job,
-      formattedJob: formatJobForFrontend(job),
+      message: "Opening created",
+      job: opening,
+      formattedJob: formatOpeningForFrontend(opening),
     });
   } catch (error) {
-    res.status(500).json({ message: "Error creating job" });
+    res.status(500).json({ message: "Error creating opening" });
   }
 };
 
-// ✅ UPDATE JOB
-export const updateJob = async (req, res) => {
+export const updateOpening = async (req, res) => {
   try {
-    const job = await Job.findByIdAndUpdate(
+    const opening = await Opening.findByIdAndUpdate(
       req.params.id,
-      normalizeJobPayload(req.body),
+      normalizeOpeningPayload(req.body),
       { returnDocument: "after" }
     );
 
     res.json({
       success: true,
-      job,
-      formattedJob: job ? formatJobForFrontend(job) : null,
+      job: opening,
+      formattedJob: opening ? formatOpeningForFrontend(opening) : null,
     });
   } catch (error) {
-    res.status(500).json({ message: "Error updating job" });
+    res.status(500).json({ message: "Error updating opening" });
   }
 };
 
-// ✅ DELETE JOB
-export const deleteJob = async (req, res) => {
+export const deleteOpening = async (req, res) => {
   try {
-    await Job.findByIdAndDelete(req.params.id);
+    await Opening.findByIdAndDelete(req.params.id);
 
     res.json({
       success: true,
       message: "Deleted",
     });
   } catch (error) {
-    res.status(500).json({ message: "Error deleting job" });
+    res.status(500).json({ message: "Error deleting opening" });
   }
 };

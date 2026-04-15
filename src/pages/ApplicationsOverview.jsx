@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Card, Col, Descriptions, Drawer, Input, Row, Select, Space, Statistic, Table, Tag, Typography, message } from 'antd';
-import { MdCancel, MdCheckCircle, MdDownload, MdHourglassEmpty, MdPeople, MdRefresh, MdVisibility, MdWork } from 'react-icons/md';
+import { Button, Card, Col, Descriptions, Drawer, Form, Input, Modal, Popconfirm, Row, Select, Space, Statistic, Table, Tag, Typography, message } from 'antd';
+import { MdCancel, MdCheckCircle, MdDelete, MdDownload, MdHourglassEmpty, MdPeople, MdRefresh, MdVisibility, MdWork } from 'react-icons/md';
 import { applicationsAPI } from '../services/api';
 import {
   getApplicationExperienceSummary,
@@ -68,6 +68,13 @@ const ApplicationsOverview = () => {
   const [filters, setFilters] = useState({ status: '', search: '' });
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState(null);
+  const [notes, setNotes] = useState('');
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editingApplication, setEditingApplication] = useState(null);
+  const [form] = Form.useForm();
 
   const fetchApplications = useCallback(async (page = 1, pageSize = 10, currentFilters = filters, signal) => {
     setLoading(true);
@@ -112,6 +119,119 @@ const ApplicationsOverview = () => {
     fetchStats(controller.signal);
     return () => controller.abort();
   }, [fetchApplications, fetchStats, filters, pagination.pageSize]);
+
+  const handleView = useCallback((record) => {
+    setSelectedApplication(record);
+    setNotes(record?.notes || '');
+    setDrawerOpen(true);
+  }, []);
+
+  const handleOpenEdit = useCallback((record) => {
+    setEditingApplication(record);
+    form.setFieldsValue({
+      fullName: record?.fullName || '',
+      email: record?.email || '',
+      phone: record?.phone || '',
+      appliedFor: record?.appliedFor || record?.jobTitle || record?.position || '',
+      qualification: record?.qualification || '',
+      college: record?.college || '',
+      currentCity: record?.currentCity || '',
+      experience: Array.isArray(record?.experience) && record.experience.length ? 'Experienced' : 'Fresher',
+    });
+    setEditOpen(true);
+  }, [form]);
+
+  const handleEditSubmit = useCallback(async (values) => {
+    if (!editingApplication?._id) return;
+    setEditLoading(true);
+    try {
+      const payload = {
+        fullName: values.fullName,
+        email: values.email,
+        phone: values.phone,
+        appliedFor: values.appliedFor,
+        jobTitle: values.appliedFor,
+        qualification: values.qualification,
+        college: values.college,
+        currentCity: values.currentCity,
+        experience: values.experience,
+      };
+      const res = await applicationsAPI.update(editingApplication._id, payload);
+      if (res.data.success) {
+        const updated = res.data.application;
+        message.success('Application edited successfully');
+        setApplications((prev) => prev.map((item) => (item._id === updated._id ? { ...item, ...updated } : item)));
+        setSelectedApplication((prev) => (prev?._id === updated._id ? { ...prev, ...updated } : prev));
+        setEditOpen(false);
+        setEditingApplication(null);
+        form.resetFields();
+      }
+    } catch (error) {
+      console.error(error);
+      message.error(error?.response?.data?.message || 'Failed to edit application');
+    } finally {
+      setEditLoading(false);
+    }
+  }, [editingApplication, form]);
+
+  const handleStatusUpdate = useCallback(async (id, status) => {
+    setStatusUpdating(true);
+    try {
+      const res = await applicationsAPI.updateStatus(id, status);
+      if (res.data.success) {
+        const updated = res.data.application;
+        message.success('Application updated');
+        setApplications((prev) => prev.map((item) => (item._id === id ? { ...item, ...updated } : item)));
+        setSelectedApplication((prev) => (prev?._id === id ? { ...prev, ...updated } : prev));
+        fetchStats();
+      }
+    } catch (error) {
+      console.error(error);
+      message.error(error?.response?.data?.message || 'Failed to update application');
+    } finally {
+      setStatusUpdating(false);
+    }
+  }, [fetchStats]);
+
+  const handleSaveNotes = useCallback(async () => {
+    if (!selectedApplication?._id) return;
+    setNotesLoading(true);
+    try {
+      const res = await applicationsAPI.updateNotes(selectedApplication._id, notes);
+      if (res.data.success) {
+        const updated = res.data.application;
+        message.success('Notes saved');
+        setApplications((prev) =>
+          prev.map((item) => (item._id === selectedApplication._id ? { ...item, ...updated } : item))
+        );
+        setSelectedApplication((prev) =>
+          prev?._id === selectedApplication._id ? { ...prev, ...updated } : prev
+        );
+      }
+    } catch (error) {
+      console.error(error);
+      message.error(error?.response?.data?.message || 'Failed to save notes');
+    } finally {
+      setNotesLoading(false);
+    }
+  }, [notes, selectedApplication]);
+
+  const handleDelete = useCallback(async (id) => {
+    try {
+      const res = await applicationsAPI.delete(id);
+      if (res.data.success) {
+        message.success('Application deleted');
+        setApplications((prev) => prev.filter((item) => item._id !== id));
+        setSelectedApplication((prev) => (prev?._id === id ? null : prev));
+        if (selectedApplication?._id === id) setDrawerOpen(false);
+        fetchApplications(pagination.current, pagination.pageSize, filters);
+        fetchStats();
+      }
+    } catch (error) {
+      console.error(error);
+      message.error(error?.response?.data?.message || 'Failed to delete application');
+    }
+  }, [fetchApplications, fetchStats, filters, pagination.current, pagination.pageSize, selectedApplication]);
 
   const columns = useMemo(
     () => [
@@ -186,18 +306,21 @@ const ApplicationsOverview = () => {
         title: 'Actions',
         key: 'actions',
         fixed: 'right',
-        width: 170,
+        width: 250,
         render: (_, record) => (
           <Space>
             <Button
               icon={<MdVisibility />}
               size="small"
-              onClick={() => {
-                setSelectedApplication(record);
-                setDrawerOpen(true);
-              }}
+              onClick={() => handleView(record)}
             >
               View
+            </Button>
+            <Button
+              size="small"
+              onClick={() => handleOpenEdit(record)}
+            >
+              Update
             </Button>
             <Button
               icon={<MdDownload />}
@@ -207,11 +330,21 @@ const ApplicationsOverview = () => {
             >
               Resume
             </Button>
+            <Popconfirm
+              title="Delete this application?"
+              okText="Delete"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => handleDelete(record._id)}
+            >
+              <Button danger size="small" icon={<MdDelete />}>
+                Delete
+              </Button>
+            </Popconfirm>
           </Space>
         ),
       },
     ],
-    []
+    [handleDelete, handleOpenEdit, handleView]
   );
 
   const handleSearch = (value) => {
@@ -291,49 +424,145 @@ const ApplicationsOverview = () => {
         width={620}
         extra={
           selectedApplication && (
-            <Button
-              icon={<MdDownload />}
-              disabled={!hasApplicationResume(selectedApplication)}
-              onClick={() => applicationsAPI.downloadResume(selectedApplication._id, getApplicationName(selectedApplication))}
-            >
-              Resume
-            </Button>
+            <Space>
+              <Button
+                icon={<MdDownload />}
+                disabled={!hasApplicationResume(selectedApplication)}
+                onClick={() => applicationsAPI.downloadResume(selectedApplication._id, getApplicationName(selectedApplication))}
+              >
+                Resume
+              </Button>
+              <Popconfirm
+                title="Delete this application?"
+                okText="Delete"
+                okButtonProps={{ danger: true }}
+                onConfirm={() => handleDelete(selectedApplication._id)}
+              >
+                <Button danger icon={<MdDelete />}>Delete</Button>
+              </Popconfirm>
+            </Space>
           )
         }
       >
         {selectedApplication && (
-          <Descriptions column={1} bordered size="small">
-            <Descriptions.Item label="App ID">
-              <Text code copyable={{ text: getApplicationPublicId(selectedApplication) }}>
-                {getApplicationPublicId(selectedApplication)}
-              </Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="ID">
-              <Text code copyable={{ text: String(selectedApplication._id) }}>
-                {String(selectedApplication._id)}
-              </Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="Candidate">{getApplicationName(selectedApplication)}</Descriptions.Item>
-            <Descriptions.Item label="Applied For">{getApplicationJobTitle(selectedApplication)}</Descriptions.Item>
-            <Descriptions.Item label="Email">{getUserEmail(selectedApplication)}</Descriptions.Item>
-            <Descriptions.Item label="Phone">{getUserPhone(selectedApplication)}</Descriptions.Item>
-            <Descriptions.Item label="Qualification">{selectedApplication.qualification || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="College">{selectedApplication.college || 'N/A'}</Descriptions.Item>
-            <Descriptions.Item label="City">{getUserCity(selectedApplication)}</Descriptions.Item>
-            <Descriptions.Item label="Experience">{getApplicationExperienceSummary(selectedApplication)}</Descriptions.Item>
-            <Descriptions.Item label="Status">
-              <Tag color={STATUS_COLORS[String(selectedApplication.status || '').toLowerCase()] || 'default'}>
-                {selectedApplication.status || 'N/A'}
-              </Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="Submitted">
-              {selectedApplication.submittedAt || selectedApplication.createdAt
-                ? new Date(selectedApplication.submittedAt || selectedApplication.createdAt).toLocaleString('en-IN')
-                : 'N/A'}
-            </Descriptions.Item>
-          </Descriptions>
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Card size="small">
+              <Space align="center" wrap>
+                <Text strong>Status</Text>
+                <Select
+                  value={selectedApplication.status || 'pending'}
+                  style={{ width: 180 }}
+                  loading={statusUpdating}
+                  onChange={(value) => handleStatusUpdate(selectedApplication._id, value)}
+                  options={STATUS_OPTIONS.filter((item) => item.value)}
+                />
+              </Space>
+            </Card>
+
+            <Descriptions column={1} bordered size="small">
+              <Descriptions.Item label="App ID">
+                <Text code copyable={{ text: getApplicationPublicId(selectedApplication) }}>
+                  {getApplicationPublicId(selectedApplication)}
+                </Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="ID">
+                <Text code copyable={{ text: String(selectedApplication._id) }}>
+                  {String(selectedApplication._id)}
+                </Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Candidate">{getApplicationName(selectedApplication)}</Descriptions.Item>
+              <Descriptions.Item label="Applied For">{getApplicationJobTitle(selectedApplication)}</Descriptions.Item>
+              <Descriptions.Item label="Email">{getUserEmail(selectedApplication)}</Descriptions.Item>
+              <Descriptions.Item label="Phone">{getUserPhone(selectedApplication)}</Descriptions.Item>
+              <Descriptions.Item label="Qualification">{selectedApplication.qualification || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="College">{selectedApplication.college || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="City">{getUserCity(selectedApplication)}</Descriptions.Item>
+              <Descriptions.Item label="Experience">{getApplicationExperienceSummary(selectedApplication)}</Descriptions.Item>
+              <Descriptions.Item label="Status">
+                <Tag color={STATUS_COLORS[String(selectedApplication.status || '').toLowerCase()] || 'default'}>
+                  {selectedApplication.status || 'N/A'}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Submitted">
+                {selectedApplication.submittedAt || selectedApplication.createdAt
+                  ? new Date(selectedApplication.submittedAt || selectedApplication.createdAt).toLocaleString('en-IN')
+                  : 'N/A'}
+              </Descriptions.Item>
+            </Descriptions>
+
+            <Card title="Admin Notes" size="small">
+              <Input.TextArea
+                rows={4}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add internal notes about this application..."
+                style={{ marginBottom: 12 }}
+              />
+              <Button type="primary" loading={notesLoading} onClick={handleSaveNotes}>
+                Save Notes
+              </Button>
+            </Card>
+          </Space>
         )}
       </Drawer>
+
+      <Modal
+        title={editingApplication ? `Edit Application - ${getApplicationName(editingApplication)}` : 'Edit Application'}
+        open={editOpen}
+        onCancel={() => {
+          setEditOpen(false);
+          setEditingApplication(null);
+          form.resetFields();
+        }}
+        footer={null}
+        destroyOnHidden
+      >
+        <Form form={form} layout="vertical" onFinish={handleEditSubmit}>
+          <Form.Item label="Candidate Name" name="fullName" rules={[{ required: true, message: 'Please enter candidate name' }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item label="Email" name="email" rules={[{ required: true, message: 'Please enter email' }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item label="Phone" name="phone">
+            <Input />
+          </Form.Item>
+          <Form.Item label="Applied For" name="appliedFor">
+            <Input />
+          </Form.Item>
+          <Form.Item label="Qualification" name="qualification">
+            <Input />
+          </Form.Item>
+          <Form.Item label="College" name="college">
+            <Input />
+          </Form.Item>
+          <Form.Item label="City" name="currentCity">
+            <Input />
+          </Form.Item>
+          <Form.Item label="Experience" name="experience">
+            <Select
+              options={[
+                { value: 'Fresher', label: 'Fresher' },
+                { value: 'Experienced', label: 'Experienced' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit" loading={editLoading}>
+                Save Changes
+              </Button>
+              <Button onClick={() => {
+                setEditOpen(false);
+                setEditingApplication(null);
+                form.resetFields();
+              }}>
+                Cancel
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 };

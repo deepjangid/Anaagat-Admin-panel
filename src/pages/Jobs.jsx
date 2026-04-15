@@ -33,21 +33,6 @@ const normalizeCode = (value, maxLen) => {
   return cleaned.slice(0, maxLen);
 };
 
-const getShortId = (id) => {
-  const value = String(id || '');
-  if (!value) return '—';
-  return value.length > 8 ? value.slice(-8) : value;
-};
-
-const getJobPublicId = (job) => {
-  const suffix = getShortId(job?._id);
-  const company = normalizeCode(job?.company, 3);
-  const location = normalizeCode(job?.location, 3);
-  const type = normalizeCode(job?.type, 2);
-  const category = normalizeCode(job?.category, 3);
-  return `JOB-${company}-${location}-${type}-${category}-${suffix}`;
-};
-
 const getGenderCode = (value) => {
   const normalized = String(value || '').trim().toLowerCase();
   if (!normalized) return 'ANY';
@@ -60,8 +45,27 @@ const getGenderCode = (value) => {
 const getQualificationCode = (value) => {
   const normalized = String(value || '').trim().toUpperCase();
   if (!normalized) return 'NA';
-  if (/\b10\b|\b10TH\b/.test(normalized)) return '10';
-  if (/\b12\b|\b12TH\b/.test(normalized)) return '12';
+  if (/\b10\b|\b10TH\b/.test(normalized)) return 'X';
+  if (/\b12\b|\b12TH\b/.test(normalized)) return 'Y';
+  if (
+    normalized.includes('POST') ||
+    normalized.includes('PG') ||
+    normalized.includes('MBA') ||
+    normalized.includes('MTECH') ||
+    normalized.includes('MSC') ||
+    normalized.includes('MCOM') ||
+    normalized.includes('MA')
+  ) return 'PG';
+  if (
+    normalized.includes('GRAD') ||
+    normalized.includes('BTECH') ||
+    normalized.includes('BE') ||
+    normalized.includes('BSC') ||
+    normalized.includes('BCA') ||
+    normalized.includes('BBA') ||
+    normalized.includes('BCOM') ||
+    normalized.includes('BA')
+  ) return 'UG';
   return normalizeCode(normalized, 3);
 };
 
@@ -71,48 +75,48 @@ const getExperienceCode = (value) => {
   if (normalized.includes('fresher') || normalized === '0' || normalized.startsWith('0-')) {
     return 'FR';
   }
-  return normalizeCode(normalized, 3);
+  return 'EX';
 };
 
-const getPriceCode = (job) => {
-  const fixedPrice = job?.fixedPrice;
-  if (fixedPrice !== undefined && fixedPrice !== null && fixedPrice !== '') {
-    return `FX${String(fixedPrice).replace(/[^0-9]/g, '').slice(0, 4) || '0'}`;
-  }
-  const maxSalary = job?.salary?.max ?? job?.salary?.min;
-  if (maxSalary !== undefined && maxSalary !== null && maxSalary !== '') {
-    return `SL${String(maxSalary).replace(/[^0-9]/g, '').slice(0, 4) || '0'}`;
-  }
-  return 'PAY';
+const getTypeCode = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return 'NA';
+  if (normalized.includes('full')) return 'FT';
+  if (normalized.includes('part')) return 'PT';
+  if (normalized.includes('contract')) return 'CT';
+  if (normalized.includes('freelance')) return 'FL';
+  if (normalized.includes('intern')) return 'IN';
+  return normalizeCode(normalized, 2);
 };
 
 const getEnhancedJobPublicId = (job) => {
-  const suffix = getShortId(job?._id);
   const company = normalizeCode(job?.company, 3);
   const gender = getGenderCode(job?.genderRequirement);
   const qualification = getQualificationCode(job?.qualification);
-  const price = getPriceCode(job);
   const experience = getExperienceCode(job?.experience);
   const location = normalizeCode(job?.location, 3);
-  const type = normalizeCode(job?.type, 2);
+  const type = getTypeCode(job?.type);
   const age = normalizeCode(job?.ageRequirement, 3);
-  return `JOB-${company}-${gender}-${qualification}-${price}-${experience}-${location}-${type}-${age}-${suffix}`;
+  return [company, gender, qualification, experience, location, type, age].join('/');
 };
 
 const getJobMetaLine = (job) =>
   [
-    `Gender: ${job?.genderRequirement || 'Any'}`,
-    `Qualification: ${job?.qualification || 'NA'}`,
-    `Experience: ${job?.experience || 'NA'}`,
-    `Price: ${
-      job?.fixedPrice !== undefined && job?.fixedPrice !== null && job?.fixedPrice !== ''
-        ? `Fixed ${job.fixedPrice}`
-        : 'Not set'
-    }`,
-    `Age: ${job?.ageRequirement || 'NA'}`,
+    job?.company || 'NA',
+    job?.genderRequirement || 'Any',
+    job?.qualification || 'NA',
+    job?.experience || 'NA',
+    job?.location || 'NA',
+    job?.type || 'NA',
+    job?.ageRequirement || 'NA',
   ].join(' | ');
 
-const Jobs = () => {
+const Jobs = ({
+  pageTitle = 'Client Requirements',
+  addButtonLabel = 'Add New Job',
+  api = jobsAPI,
+  entityLabel = 'Job',
+}) => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -135,7 +139,7 @@ const Jobs = () => {
   const fetchJobs = async (page = 1, pageSize = 10) => {
     setLoading(true);
     try {
-      const response = await jobsAPI.getAll({
+      const response = await api.getAll({
         page,
         limit: pageSize,
       });
@@ -150,7 +154,7 @@ const Jobs = () => {
       }
     } catch (error) {
       console.error('Fetch Jobs Error:', error);
-      message.error('Failed to fetch jobs');
+      message.error(`Failed to fetch ${entityLabel.toLowerCase()}s`);
     } finally {
       setLoading(false);
     }
@@ -268,17 +272,17 @@ const Jobs = () => {
 
       if (editingJob) {
         // Update existing job
-        const response = await jobsAPI.update(editingJob._id, jobData);
+        const response = await api.update(editingJob._id, jobData);
         if (response.data.success) {
-          message.success('Job updated successfully!');
+          message.success(`${entityLabel} updated successfully!`);
           fetchJobs(pagination.current, pagination.pageSize);
           closeModal();
         }
       } else {
         // Create new job
-        const response = await jobsAPI.create(jobData);
+        const response = await api.create(jobData);
         if (response.data.success) {
-          message.success('Job created successfully!');
+          message.success(`${entityLabel} created successfully!`);
           fetchJobs(1, pagination.pageSize);
           closeModal();
         }
@@ -292,14 +296,14 @@ const Jobs = () => {
   // Handle delete
   const handleDelete = async (id) => {
     try {
-      const response = await jobsAPI.delete(id);
+      const response = await api.delete(id);
       if (response.data.success) {
-        message.success('Job deleted successfully!');
+        message.success(`${entityLabel} deleted successfully!`);
         fetchJobs(pagination.current, pagination.pageSize);
       }
     } catch (error) {
       console.error('Delete Error:', error);
-      message.error('Failed to delete job');
+      message.error(`Failed to delete ${entityLabel.toLowerCase()}`);
     }
   };
 
@@ -307,7 +311,7 @@ const Jobs = () => {
     {
       title: 'Job ID',
       key: 'publicId',
-      width: 220,
+      width: 250,
       render: (_, record) => {
         const publicId = getEnhancedJobPublicId(record);
         return (
@@ -354,19 +358,6 @@ const Jobs = () => {
       width: 120,
     },
     {
-      title: 'Profile',
-      key: 'profile',
-      width: 260,
-      render: (_, record) => (
-        <Space direction="vertical" size={0}>
-          <Text>{record.genderRequirement || 'Any'} / {record.qualification || 'NA'}</Text>
-          <Text type="secondary">
-            {record.experience || 'NA'} / {record.ageRequirement || 'NA'}
-          </Text>
-        </Space>
-      ),
-    },
-    {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
@@ -387,17 +378,6 @@ const Jobs = () => {
           <MdVisibility />
           {count}
         </Space>
-      ),
-    },
-    {
-      title: 'ID',
-      dataIndex: '_id',
-      key: '_id',
-      width: 220,
-      render: (id) => (
-        <Text code copyable={{ text: String(id || '') }}>
-          {String(id || '')}
-        </Text>
       ),
     },
     {
@@ -437,16 +417,16 @@ const Jobs = () => {
         className="page-header"
         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
       >
-        <h1>Job Requirements</h1>
+        <h1>{pageTitle}</h1>
         <Button type="primary" icon={<MdAdd />} onClick={() => openModal()}>
-          Add New Job
+          {addButtonLabel}
         </Button>
       </div>
 
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>
           <Search
-            placeholder="Search by Job ID/title/company/location/gender/qualification/type or paste _id"
+            placeholder="Search by short code, title, company, location, qualification, or type"
             onSearch={(value) => {
               setFilters((prev) => ({ ...prev, search: value ? String(value).trim() : '' }));
               setPagination((prev) => ({ ...prev, current: 1 }));
@@ -537,7 +517,7 @@ const Jobs = () => {
             showTotal: (total) => `Total ${total} jobs`,
           }}
           onChange={handleTableChange}
-          scroll={{ x: 2000 }}
+          scroll={{ x: 1500 }}
         />
       </Card>
 

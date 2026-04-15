@@ -1,32 +1,31 @@
-import { Layout, Button, Avatar, Badge, Dropdown } from 'antd';
-import { MdMenu, MdNotifications, MdPerson } from 'react-icons/md';
+import { Layout, Button, Avatar, Dropdown, Space, Typography } from 'antd';
+import { MdMenu } from 'react-icons/md';
+import { useNavigate } from 'react-router-dom';
+import logo from '../assets/logo.png';
 
 const { Header: AntHeader } = Layout;
+const { Text } = Typography;
 
-const Header = ({ collapsed, setCollapsed }) => {
+const Header = ({ collapsed, setCollapsed, isMobile = false }) => {
+  const navigate = useNavigate();
   const userMenuItems = [
     {
       key: 'profile',
       label: 'Profile',
     },
-    {
-      key: 'settings',
-      label: 'Settings',
-    },
-    {
-      type: 'divider',
-    },
-    {
-      key: 'logout',
-      label: 'Logout',
-      danger: true,
-    },
   ];
+
+  const handleUserMenuClick = ({ key }) => {
+    if (key === 'profile') {
+      navigate('/dashboard');
+    }
+  };
 
   return (
     <AntHeader
+      className="admin-header"
       style={{
-        marginLeft: collapsed ? 80 : 250,
+        marginLeft: isMobile ? 0 : (collapsed ? 86 : 250),
         transition: 'all 0.2s',
       }}
     >
@@ -41,14 +40,24 @@ const Header = ({ collapsed, setCollapsed }) => {
             height: 40,
           }}
         />
+        <div className="admin-header-copy">
+          <Text className="admin-header-eyebrow">Admin workspace</Text>
+          <Text className="admin-header-title">Manage your content and hiring pipeline</Text>
+        </div>
       </div>
       <div className="header-right">
-        <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-          <Avatar
-            size={40}
-            icon={<MdPerson />}
-            style={{ cursor: 'pointer', backgroundColor: '#1890ff' }}
-          />
+        <Dropdown menu={{ items: userMenuItems, onClick: handleUserMenuClick }} placement="bottomRight">
+          <Space className="admin-header-profile" size={12}>
+            <div className="admin-header-profile-copy">
+              <Text className="admin-header-profile-label">Administrator</Text>
+              <Text className="admin-header-profile-link">View profile</Text>
+            </div>
+            <Avatar
+              size={42}
+              src={<img src={logo} alt="Anaagat" className="admin-header-avatar-logo" />}
+              style={{ cursor: 'pointer', backgroundColor: '#ffffff' }}
+            />
+          </Space>
         </Dropdown>
       </div>
     </AntHeader>

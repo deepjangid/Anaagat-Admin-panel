@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Layout } from 'antd';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -8,6 +8,7 @@ import Header from './components/Header';
 import Login from './pages/Login';
 import Dashboard from './pages/DashboardPanel';
 import Jobs from './pages/Jobs';
+import Openings from './pages/Openings';
 import Applications from './pages/ApplicationsOverview';
 import BannerPage from './pages/BannerPage';
 import AboutUsPage from './pages/AboutUsPage';
@@ -30,18 +31,48 @@ const ProtectedRoute = () => {
 
 const AdminLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 991px)');
+
+    const syncLayout = (event) => {
+      const nextIsMobile = event.matches;
+      setIsMobile(nextIsMobile);
+      if (nextIsMobile) {
+        setCollapsed(true);
+      }
+    };
+
+    syncLayout(mediaQuery);
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', syncLayout);
+      return () => mediaQuery.removeEventListener('change', syncLayout);
+    }
+
+    mediaQuery.addListener(syncLayout);
+    return () => mediaQuery.removeListener(syncLayout);
+  }, []);
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Sidebar collapsed={collapsed} />
-      <Layout>
-        <Header collapsed={collapsed} setCollapsed={setCollapsed} />
+    <Layout className="admin-app-shell" style={{ minHeight: '100vh' }}>
+      <Sidebar collapsed={collapsed} isMobile={isMobile} onNavigate={() => {
+        if (isMobile) setCollapsed(true);
+      }} />
+      {isMobile && !collapsed && (
+        <div
+          className="admin-sidebar-backdrop"
+          onClick={() => setCollapsed(true)}
+          aria-hidden="true"
+        />
+      )}
+      <Layout className="admin-main-shell">
+        <Header collapsed={collapsed} setCollapsed={setCollapsed} isMobile={isMobile} />
         <Content
+          className="admin-content"
           style={{
-            margin: '24px 16px',
-            padding: 24,
-            background: '#f0f2f5',
-            marginLeft: collapsed ? '4.5rem' : '16rem',
+            marginLeft: isMobile ? 0 : (collapsed ? 86 : 250),
             transition: 'all 0.2s ease-in-out',
           }}
         >
@@ -63,6 +94,7 @@ function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="jobs" element={<Jobs />} />
           <Route path="job-requirements" element={<Jobs />} />
+          <Route path="openings" element={<Openings />} />
           <Route path="applications" element={<Applications />} /> {/* ← NEW */}
           <Route path="candidate-profiles" element={<CandidateProfilesPage />} />
           <Route path="client-profiles" element={<ClientProfilesPage />} />

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Avatar, Button, Card, Descriptions, Drawer, Input, Popconfirm, Space, Table, Tag, Typography, message } from 'antd';
-import { MdDelete, MdDone, MdEmail, MdMail, MdRefresh, MdVisibility } from 'react-icons/md';
+import { Avatar, Button, Card, Col, Descriptions, Drawer, Input, Row, Space, Statistic, Table, Tag, Typography, message } from 'antd';
+import { MdEmail, MdMail, MdRefresh, MdVisibility } from 'react-icons/md';
 import { adminAPI } from '../services/api';
-import { getMessagePreview, getSubject, getUserEmail, getUserName, getUserPhone } from '../utils/adminRecords';
+import { getUserEmail, getUserName, getUserPhone } from '../utils/adminRecords';
 
-const { Search } = Input;
-const { Text, Paragraph } = Typography;
+const { Search, TextArea } = Input;
+const { Text } = Typography;
 
 const ContactMessagesView = () => {
   const [items, setItems] = useState([]);
@@ -47,54 +47,23 @@ const ContactMessagesView = () => {
     return () => controller.abort();
   }, [fetchItems, filters, pagination.pageSize]);
 
-  const handleDelete = useCallback(async (id) => {
-    try {
-      const res = await adminAPI.deleteContactMessage(id);
-      if (res.data.success) {
-        message.success('Message deleted.');
-        fetchItems(pagination.current, pagination.pageSize, filters);
-        if (selected?._id === id) {
-          setSelected(null);
-          setDrawerOpen(false);
-        }
-      } else {
-        message.error('Delete failed.');
-      }
-    } catch (error) {
-      console.error(error);
-      message.error(error?.response?.data?.message || 'Delete failed.');
-    }
-  }, [fetchItems, filters, pagination, selected?._id]);
-
-  const handleMarkRead = useCallback(async (id) => {
-    try {
-      const res = await adminAPI.markContactMessageRead(id);
-      if (res.data.success) {
-        message.success('Marked as read.');
-        setItems((prev) => prev.map((item) => (item._id === id ? { ...item, isRead: true } : item)));
-        setSelected((prev) => (prev && prev._id === id ? { ...prev, isRead: true } : prev));
-      } else {
-        message.error('Update failed.');
-      }
-    } catch (error) {
-      console.error(error);
-      message.error(error?.response?.data?.message || 'Update failed.');
-    }
-  }, []);
+  const stats = useMemo(() => ({
+    total: items.length,
+    withEmail: items.filter((item) => item?.email).length,
+    withPhone: items.filter((item) => item?.phone).length,
+    companies: items.filter((item) => item?.companyName).length,
+  }), [items]);
 
   const columns = useMemo(
     () => [
       {
-        title: 'From',
+        title: 'Name',
         key: 'from',
-        width: 280,
+        width: 260,
         render: (_, record) => (
           <Space>
             <Avatar icon={<MdMail />} className="admin-avatar" />
-            <div>
-              <div className="admin-table-title">{getUserName(record)}</div>
-              <div className="admin-table-subtitle">{getUserPhone(record)}</div>
-            </div>
+            <div className="admin-table-title">{getUserName(record)}</div>
           </Space>
         ),
       },
@@ -110,35 +79,43 @@ const ContactMessagesView = () => {
         ),
       },
       {
-        title: 'Subject',
-        key: 'subject',
+        title: 'Phone',
+        key: 'phone',
+        width: 180,
+        render: (_, record) => getUserPhone(record),
+      },
+      {
+        title: 'Type',
+        key: 'role',
+        width: 160,
+        render: (_, record) => <Tag color={record?.role === 'admin' ? 'geekblue' : 'default'}>{record?.role || 'contact'}</Tag>,
+      },
+      {
+        title: 'Company / City',
+        key: 'meta',
         width: 220,
-        render: (_, record) => getSubject(record),
+        render: (_, record) => record?.companyName || record?.city || 'N/A',
       },
       {
-        title: 'Message',
-        key: 'message',
-        width: 320,
-        render: (_, record) => <span className="admin-clamp-two">{getMessagePreview(record)}</span>,
-      },
-      {
-        title: 'Status',
-        key: 'status',
-        width: 120,
-        render: (_, record) => <Tag color={record?.isRead ? 'green' : 'gold'}>{record?.isRead ? 'Read' : 'New'}</Tag>,
+        title: 'Source',
+        key: 'sourceLabel',
+        width: 220,
+        render: (_, record) => record?.sourceLabel || 'N/A',
       },
       {
         title: 'Received',
-        dataIndex: 'createdAt',
-        key: 'createdAt',
+        dataIndex: 'updatedAt',
+        key: 'updatedAt',
         width: 190,
-        render: (value) => (value ? new Date(value).toLocaleString('en-IN') : 'N/A'),
+        render: (value, record) => {
+          const timestamp = value || record?.createdAt;
+          return timestamp ? new Date(timestamp).toLocaleString('en-IN') : 'N/A';
+        },
       },
       {
         title: 'Actions',
         key: 'actions',
-        fixed: 'right',
-        width: 220,
+        width: 120,
         render: (_, record) => (
           <Space>
             <Button
@@ -151,24 +128,11 @@ const ContactMessagesView = () => {
             >
               View
             </Button>
-            <Button size="small" icon={<MdDone />} disabled={Boolean(record?.isRead)} onClick={() => handleMarkRead(record._id)}>
-              Read
-            </Button>
-            <Popconfirm
-              title="Delete this message?"
-              okText="Delete"
-              okButtonProps={{ danger: true }}
-              onConfirm={() => handleDelete(record._id)}
-            >
-              <Button danger size="small" icon={<MdDelete />}>
-                Delete
-              </Button>
-            </Popconfirm>
           </Space>
         ),
       },
     ],
-    [handleDelete, handleMarkRead]
+    []
   );
 
   const handleSearch = (value) => {
@@ -179,14 +143,32 @@ const ContactMessagesView = () => {
 
   return (
     <div>
-      <div className="page-header">
-        <h1>Contact Messages</h1>
+      <div className="page-header page-header-row">
+        <h1>All Contacts</h1>
       </div>
+
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={12} sm={12} lg={8}>
+          <Card className="admin-surface-card" size="small">
+            <Statistic title="Total Contacts" value={stats.total} prefix={<MdMail />} />
+          </Card>
+        </Col>
+        <Col xs={12} sm={12} lg={8}>
+          <Card className="admin-surface-card" size="small">
+            <Statistic title="With Email" value={stats.withEmail} />
+          </Card>
+        </Col>
+        <Col xs={12} sm={12} lg={8}>
+          <Card className="admin-surface-card" size="small">
+            <Statistic title="With Phone" value={stats.withPhone} />
+          </Card>
+        </Col>
+      </Row>
 
       <Card className="admin-surface-card" style={{ marginBottom: 16 }}>
         <Space wrap>
           <Search
-            placeholder="Search by name, email, phone, subject, or paste _id"
+            placeholder="Search by name, email, phone, city, company, or source"
             onSearch={handleSearch}
             style={{ width: 360 }}
             allowClear
@@ -203,11 +185,12 @@ const ContactMessagesView = () => {
           dataSource={items}
           rowKey="_id"
           loading={loading}
+          locale={{ emptyText: 'No contact information found.' }}
           pagination={{
             ...pagination,
             showSizeChanger: true,
             pageSizeOptions: ['10', '20', '50', '100'],
-            showTotal: (total) => `Total ${total} messages`,
+                showTotal: (total) => `Total ${total} contacts`,
           }}
           onChange={(nextPagination) => fetchItems(nextPagination.current, nextPagination.pageSize, filters)}
           scroll={{ x: 1600 }}
@@ -215,49 +198,30 @@ const ContactMessagesView = () => {
       </Card>
 
       <Drawer
-        title={selected ? `Message - ${getUserName(selected)}` : ''}
+        title={selected ? `Contact - ${getUserName(selected)}` : ''}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={620}
-        extra={
-          selected && (
-            <Space>
-              <Button icon={<MdDone />} disabled={Boolean(selected?.isRead)} onClick={() => handleMarkRead(selected._id)}>
-                Mark Read
-              </Button>
-              <Popconfirm
-                title="Delete this message?"
-                okText="Delete"
-                okButtonProps={{ danger: true }}
-                onConfirm={() => handleDelete(selected._id)}
-              >
-                <Button danger icon={<MdDelete />}>
-                  Delete
-                </Button>
-              </Popconfirm>
-            </Space>
-          )
-        }
       >
         {selected && (
           <Descriptions column={1} bordered size="small">
             <Descriptions.Item label="ID">
-              <Text code copyable={{ text: String(selected._id) }}>
-                {String(selected._id)}
+              <Text code copyable={{ text: String(selected.recordId || selected._id) }}>
+                {String(selected.recordId || selected._id)}
               </Text>
             </Descriptions.Item>
             <Descriptions.Item label="Name">{getUserName(selected)}</Descriptions.Item>
             <Descriptions.Item label="Email">{getUserEmail(selected)}</Descriptions.Item>
             <Descriptions.Item label="Phone">{getUserPhone(selected)}</Descriptions.Item>
-            <Descriptions.Item label="Subject">{getSubject(selected)}</Descriptions.Item>
-            <Descriptions.Item label="Status">
-              <Tag color={selected?.isRead ? 'green' : 'gold'}>{selected?.isRead ? 'Read' : 'New'}</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="Message">
-              <Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{getMessagePreview(selected)}</Paragraph>
-            </Descriptions.Item>
-            <Descriptions.Item label="Received">
-              {selected?.createdAt ? new Date(selected.createdAt).toLocaleString('en-IN') : 'N/A'}
+            <Descriptions.Item label="Type">{selected?.role || 'contact'}</Descriptions.Item>
+            <Descriptions.Item label="Company">{selected?.companyName || selected?.subject || 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="City">{selected?.city || 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Source">{selected?.sourceLabel || 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Message">{selected?.message || 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Updated">
+              {selected?.updatedAt || selected?.createdAt
+                ? new Date(selected.updatedAt || selected.createdAt).toLocaleString('en-IN')
+                : 'N/A'}
             </Descriptions.Item>
           </Descriptions>
         )}

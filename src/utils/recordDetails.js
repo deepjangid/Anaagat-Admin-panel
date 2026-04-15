@@ -17,7 +17,14 @@ export const formatRecordValue = (value) => {
   if (typeof value === 'object') {
     if ('url' in value && typeof value.url === 'string') return value.url;
     if ('name' in value && typeof value.name === 'string') return value.name;
-    return JSON.stringify(value);
+    const entries = Object.entries(value)
+      .map(([key, item]) => {
+        const formatted = formatRecordValue(item);
+        if (formatted === '—') return null;
+        return `${toLabel(key)}: ${formatted}`;
+      })
+      .filter(Boolean);
+    return entries.length ? entries.join(', ') : '—';
   }
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   return String(value);

@@ -8,6 +8,7 @@ import { fileURLToPath } from "url";
 import authRoutes from "./routes/authRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import jobRoutes from "./routes/jobRoutes.js";
+import openingRoutes from "./routes/openingRoutes.js";
 import applicationsRoutes from "./routes/applicationsRoutes.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -80,6 +81,7 @@ app.get("/api/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/jobs", jobRoutes);
+app.use("/api/openings", openingRoutes);
 app.use("/api/applications", applicationsRoutes);
 
 app.get("/", (req, res) => {

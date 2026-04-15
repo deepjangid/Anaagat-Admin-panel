@@ -15,10 +15,11 @@ import {
   MdArticle,
   MdLogout,
 } from 'react-icons/md';
+import logo from '../assets/logo.png';
 
 const { Sider } = Layout;
 
-const Sidebar = ({ collapsed }) => {
+const Sidebar = ({ collapsed, isMobile = false, onNavigate }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -31,7 +32,12 @@ const Sidebar = ({ collapsed }) => {
     {
       key: '/job-requirements',
       icon: <MdWork size={20} />,
-      label: 'Job Requirements',
+      label: 'Client Requirements ',
+    },
+    {
+      key: '/openings',
+      icon: <MdWork size={20} />,
+      label: 'Openings',
     },
     {
       key: '/applications',       // ← NEW
@@ -51,7 +57,7 @@ const Sidebar = ({ collapsed }) => {
     {
       key: '/contact-messages',
       icon: <MdMail size={20} />,
-      label: 'Contact Messages',
+      label: 'All Contacts',
     },
     {
       key: '/resumes',
@@ -63,6 +69,7 @@ const Sidebar = ({ collapsed }) => {
       icon: <MdViewCarousel size={20} />,
       label: 'Banner',
     },
+    
     {
       key: '/about-us',
       icon: <MdInfoOutline size={20} />,
@@ -93,6 +100,8 @@ const Sidebar = ({ collapsed }) => {
     } else {
       navigate(key);
     }
+
+    onNavigate?.();
   };
 
   return (
@@ -100,29 +109,50 @@ const Sidebar = ({ collapsed }) => {
       collapsible
       collapsed={collapsed}
       trigger={null}
-      width={250}
+      width={isMobile ? 280 : 250}
+      collapsedWidth={isMobile ? 0 : 86}
+      breakpoint="lg"
+      className={`admin-sidebar ${isMobile ? 'is-mobile' : ''}`}
       style={{
-        overflow: 'auto',
         height: '100vh',
         position: 'fixed',
         left: 0,
         top: 0,
         bottom: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
       }}
     >
-      <div className="logo">{collapsed ? 'AD' : 'Admin Dashboard'}</div>
-      <Menu
-        theme="dark"
-        mode="inline"
-        selectedKeys={[location.pathname]}
-        onClick={handleMenuClick}
-        items={menuItems}
-      />
-      <div style={{ position: 'absolute', bottom: 0, width: '100%' }}>
+      <div className={`admin-sidebar-brand ${collapsed ? 'is-collapsed' : ''}`}>
+        <div className="admin-sidebar-brand-mark">
+          <img src={logo} alt="Anaagat" className="admin-sidebar-logo" />
+        </div>
+        {!collapsed && (
+          <div className="admin-sidebar-brand-copy">
+            <span className="admin-sidebar-brand-title">Anaagat</span>
+            <span className="admin-sidebar-brand-subtitle">Admin Panel</span>
+          </div>
+        )}
+      </div>
+
+      <div className="admin-sidebar-menu-wrap">
+        <Menu
+          theme="dark"
+          mode="inline"
+          selectedKeys={[location.pathname]}
+          onClick={handleMenuClick}
+          items={menuItems}
+          className="admin-sidebar-menu"
+        />
+      </div>
+
+      <div className="admin-sidebar-footer">
         <Menu
           theme="dark"
           mode="inline"
           onClick={handleMenuClick}
+          className="admin-sidebar-menu admin-sidebar-logout"
           items={[
             {
               key: 'logout',

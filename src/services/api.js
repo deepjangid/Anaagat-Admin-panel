@@ -97,6 +97,13 @@ export const jobsAPI = {
   delete: (id) => api.delete(`/jobs/${id}`),
 };
 
+export const openingsAPI = {
+  getAll: (params) => api.get("/openings", { params }),
+  create: (data) => api.post("/openings", data),
+  update: (id, data) => api.put(`/openings/${id}`, data),
+  delete: (id) => api.delete(`/openings/${id}`),
+};
+
 // â”€â”€â”€ APPLICATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const applicationsAPI = {
   // List with optional ?page=&limit=&status=&search=
@@ -104,6 +111,9 @@ export const applicationsAPI = {
 
   // Single application detail
   getById: (id, config = {}) => api.get(`/applications/${id}`, config),
+
+  // Full application update
+  update: (id, data, config = {}) => api.put(`/applications/${id}`, data, config),
 
   // Download resume â€” returns a blob, so we configure responseType here
   downloadResume: (id, applicantName) =>
@@ -142,12 +152,18 @@ export const adminAPI = {
   deleteUser: (id, config = {}) => api.delete(`/admin/user/${id}`, config),
 
   getCandidateProfiles: (params, config = {}) => api.get('/admin/candidate-profiles', { params, ...config }),
+  createCandidateProfile: (data, config = {}) => api.post('/admin/candidate-profiles', data, config),
+  updateCandidateProfile: (id, data, config = {}) => api.put(`/admin/candidate-profiles/${id}`, data, config),
   deleteCandidateProfile: (id, config = {}) => api.delete(`/admin/candidate-profiles/${id}`, config),
 
   getClientProfiles: (params, config = {}) => api.get('/admin/client-profiles', { params, ...config }),
+  createClientProfile: (data, config = {}) => api.post('/admin/client-profiles', data, config),
+  updateClientProfile: (id, data, config = {}) => api.put(`/admin/client-profiles/${id}`, data, config),
   deleteClientProfile: (id, config = {}) => api.delete(`/admin/client-profiles/${id}`, config),
 
   getContactMessages: (params, config = {}) => api.get('/admin/contact-messages', { params, ...config }),
+  createContactMessage: (data, config = {}) => api.post('/admin/contact-messages', data, config),
+  updateContactMessage: (id, data, config = {}) => api.put(`/admin/contact-messages/${id}`, data, config),
   markContactMessageRead: (id, config = {}) => api.patch(`/admin/contact-messages/${id}/read`, {}, config),
   deleteContactMessage: (id, config = {}) => api.delete(`/admin/contact-messages/${id}`, config),
 };
