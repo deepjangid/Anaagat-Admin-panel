@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -14,8 +14,9 @@ import {
   message,
   Popconfirm,
   Typography,
+  Dropdown,
 } from 'antd';
-import { MdAdd, MdEdit, MdDelete, MdVisibility } from 'react-icons/md';
+import { MdAdd, MdArrowDropDown, MdDelete, MdDownload, MdEdit, MdUpload, MdVisibility } from 'react-icons/md';
 import { jobsAPI } from '../services/api';
 import moment from 'moment';
 
@@ -111,6 +112,342 @@ const getJobMetaLine = (job) =>
     job?.ageRequirement || 'NA',
   ].join(' | ');
 
+const IMPORT_EXPORT_FIELDS = [
+  { key: 'title', label: 'title' },
+  { key: 'company', label: 'company' },
+  { key: 'location', label: 'location' },
+  { key: 'type', label: 'type' },
+  { key: 'category', label: 'category' },
+  { key: 'experience', label: 'experience' },
+  { key: 'genderRequirement', label: 'genderRequirement' },
+  { key: 'qualification', label: 'qualification' },
+  { key: 'ageRequirement', label: 'ageRequirement' },
+  { key: 'fixedPrice', label: 'fixedPrice' },
+  { key: 'salary.min', label: 'salaryMin' },
+  { key: 'salary.max', label: 'salaryMax' },
+  { key: 'salary.currency', label: 'salaryCurrency' },
+  { key: 'description', label: 'description' },
+  { key: 'requirements', label: 'requirements', isArray: true },
+  { key: 'responsibilities', label: 'responsibilities', isArray: true },
+  { key: 'skills', label: 'skills', isArray: true },
+  { key: 'applicationDeadline', label: 'applicationDeadline' },
+  { key: 'contactEmail', label: 'contactEmail' },
+  { key: 'status', label: 'status' },
+];
+
+const IMPORT_ALIASES = {
+  title: 'title',
+  jobtitle: 'title',
+  company: 'company',
+  companyname: 'company',
+  department: 'company',
+  location: 'location',
+  address: 'location',
+  joblocation: 'location',
+  type: 'type',
+  employmenttype: 'type',
+  category: 'category',
+  salary: 'fixedPrice',
+  experience: 'experience',
+  genderrequirement: 'genderRequirement',
+  qualification: 'qualification',
+  agerequirement: 'ageRequirement',
+  age: 'ageRequirement',
+  fixedprice: 'fixedPrice',
+  salarymin: 'salary.min',
+  salarymax: 'salary.max',
+  salarycurrency: 'salary.currency',
+  description: 'description',
+  requirements: 'requirements',
+  responsibilities: 'responsibilities',
+  skills: 'skills',
+  applicationdeadline: 'applicationDeadline',
+  contactemail: 'contactEmail',
+  status: 'status',
+};
+
+const parseNumericAmount = (value) => {
+  const matches = String(value || '').match(/\d+(?:\.\d+)?/g);
+  if (!matches?.length) return null;
+  const numberValue = Number(matches[0]);
+  return Number.isFinite(numberValue) ? numberValue : null;
+};
+
+const splitArrayField = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || '').trim()).filter(Boolean);
+  }
+
+  return String(value || '')
+    .split(/\r?\n|[|;,]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
+const getNestedValue = (record, path) =>
+  path.split('.').reduce((acc, key) => (acc == null ? undefined : acc[key]), record);
+
+const setNestedValue = (target, path, value) => {
+  const keys = path.split('.');
+  const lastKey = keys.pop();
+  let cursor = target;
+
+  keys.forEach((key) => {
+    if (!cursor[key] || typeof cursor[key] !== 'object') {
+      cursor[key] = {};
+    }
+    cursor = cursor[key];
+  });
+
+  cursor[lastKey] = value;
+};
+
+const escapeCsvValue = (value) => {
+  const text = String(value ?? '');
+  if (!/[",\n]/.test(text)) return text;
+  return `"${text.replace(/"/g, '""')}"`;
+};
+
+const detectCsvDelimiter = (line) => {
+  const candidates = [',', ';', '\t'];
+  let bestDelimiter = ',';
+  let bestCount = -1;
+
+  candidates.forEach((delimiter) => {
+    const count = String(line || '').split(delimiter).length;
+    if (count > bestCount) {
+      bestDelimiter = delimiter;
+      bestCount = count;
+    }
+  });
+
+  return bestDelimiter;
+};
+
+const parseCsvRow = (line, delimiter = ',') => {
+  const values = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    const next = line[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === delimiter && !inQuotes) {
+      values.push(current);
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  values.push(current);
+  return values;
+};
+
+const parseCsvText = (text) => {
+  const normalized = String(text || '')
+    .replace(/\u0000/g, '')
+    .replace(/^\uFEFF/, '')
+    .replace(/\r\n/g, '\n');
+  const rows = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < normalized.length; i += 1) {
+    const char = normalized[i];
+    const next = normalized[i + 1];
+
+    current += char;
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        current += next;
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    }
+
+    if (char === '\n' && !inQuotes) {
+      rows.push(current.slice(0, -1));
+      current = '';
+    }
+  }
+
+  if (current) rows.push(current);
+
+  const nonEmptyRows = rows
+    .map((row) => row.replace(/\r/g, ''))
+    .filter((row) => row.trim() !== '');
+
+  if (!nonEmptyRows.length) return [];
+
+  let headerIndex = 0;
+  let delimiter = ',';
+  const separatorMatch = nonEmptyRows[0].match(/^sep=(.+)$/i);
+
+  if (separatorMatch) {
+    delimiter = separatorMatch[1];
+    headerIndex = 1;
+  } else {
+    delimiter = detectCsvDelimiter(nonEmptyRows[0]);
+  }
+
+  const headerRow = nonEmptyRows[headerIndex];
+  if (!headerRow) return [];
+
+  const headers = parseCsvRow(headerRow, delimiter).map((header) => String(header || '').trim());
+
+  return nonEmptyRows.slice(headerIndex + 1).map((row) => {
+    const values = parseCsvRow(row, delimiter);
+    return headers.reduce((acc, header, index) => {
+      acc[header] = values[index] ?? '';
+      return acc;
+    }, {});
+  });
+};
+
+const prepareRecordForExport = (job) =>
+  IMPORT_EXPORT_FIELDS.reduce((acc, field) => {
+    const value = getNestedValue(job, field.key);
+
+    if (field.isArray) {
+      acc[field.label] = Array.isArray(value) ? value.join('\n') : '';
+      return acc;
+    }
+
+    if (field.key === 'applicationDeadline') {
+      acc[field.label] = value ? moment(value).format('YYYY-MM-DD') : '';
+      return acc;
+    }
+
+    acc[field.label] = value ?? '';
+    return acc;
+  }, {});
+
+const normalizeImportedRecord = (rawRecord) => {
+  const record = {};
+  const originalValues = {};
+
+  Object.entries(rawRecord || {}).forEach(([rawKey, rawValue]) => {
+    const normalizedKey = String(rawKey || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    const targetKey = IMPORT_ALIASES[normalizedKey];
+    originalValues[normalizedKey] = typeof rawValue === 'string' ? rawValue.trim() : rawValue;
+    if (!targetKey) return;
+
+    const value = typeof rawValue === 'string' ? rawValue.trim() : rawValue;
+    const field = IMPORT_EXPORT_FIELDS.find((item) => item.key === targetKey);
+
+    if (field?.isArray) {
+      setNestedValue(record, targetKey, splitArrayField(value));
+      return;
+    }
+
+    if (['fixedPrice', 'salary.min', 'salary.max'].includes(targetKey)) {
+      if (value === '' || value === null || value === undefined) return;
+      const numberValue =
+        targetKey === 'fixedPrice' ? parseNumericAmount(value) : Number(value);
+      if (Number.isFinite(numberValue)) {
+        setNestedValue(record, targetKey, numberValue);
+      }
+      return;
+    }
+
+    if (targetKey === 'applicationDeadline') {
+      if (!value) return;
+      const parsed = moment(value, [moment.ISO_8601, 'YYYY-MM-DD', 'DD-MM-YYYY', 'MM/DD/YYYY'], true);
+      setNestedValue(record, targetKey, parsed.isValid() ? parsed.toISOString() : String(value));
+      return;
+    }
+
+    if (value !== '' && value !== undefined) {
+      setNestedValue(record, targetKey, value);
+    }
+  });
+
+  if (!String(record.type || '').trim()) {
+    record.type = 'Full-time';
+  }
+
+  if (!String(record.category || '').trim()) {
+    record.category = 'General';
+  }
+
+  if (!String(record.status || '').trim()) {
+    record.status = 'Active';
+  }
+
+  if (!String(record.description || '').trim()) {
+    const descriptionParts = [
+      record.title ? `Role: ${record.title}` : '',
+      record.company ? `Company: ${record.company}` : '',
+      record.location ? `Location: ${record.location}` : '',
+      originalValues.salary ? `Salary: ${originalValues.salary}` : '',
+      record.qualification ? `Qualification: ${record.qualification}` : '',
+      record.experience ? `Experience: ${record.experience}` : '',
+      originalValues.timing ? `Timing: ${originalValues.timing}` : '',
+      originalValues.openings ? `Openings: ${originalValues.openings}` : '',
+      originalValues.accommodation ? `Accommodation: ${originalValues.accommodation}` : '',
+    ].filter(Boolean);
+
+    record.description = descriptionParts.join(' | ');
+  }
+
+  const maleCount = parseNumericAmount(originalValues.male);
+  const femaleCount = parseNumericAmount(originalValues.female);
+
+  if (!String(record.genderRequirement || '').trim()) {
+    if (maleCount && femaleCount) {
+      record.genderRequirement = 'Both';
+    } else if (maleCount) {
+      record.genderRequirement = 'Male';
+    } else if (femaleCount) {
+      record.genderRequirement = 'Female';
+    }
+  }
+
+  const hasRequiredFields = ['title', 'location']
+    .every((key) => String(record[key] || '').trim());
+
+  return hasRequiredFields ? record : null;
+};
+
+const buildCsvFromJobs = (jobList) => {
+  const exportedRows = jobList.map(prepareRecordForExport);
+  const headers = IMPORT_EXPORT_FIELDS.map((field) => field.label);
+  const lines = [headers.join(',')];
+
+  exportedRows.forEach((row) => {
+    lines.push(headers.map((header) => escapeCsvValue(row[header])).join(','));
+  });
+
+  return `\uFEFF${lines.join('\r\n')}`;
+};
+
+const downloadTextFile = (content, filename, mimeType) => {
+  const blob = new Blob([content], { type: mimeType });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};
+
 const Jobs = ({
   pageTitle = 'Client Requirements',
   addButtonLabel = 'Add New Job',
@@ -119,6 +456,7 @@ const Jobs = ({
 }) => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
   const [filters, setFilters] = useState({
@@ -134,6 +472,7 @@ const Jobs = ({
     total: 0,
   });
   const [form] = Form.useForm();
+  const fileInputRef = useRef(null);
 
   // Fetch jobs
   const fetchJobs = async (page = 1, pageSize = 10) => {
@@ -307,7 +646,87 @@ const Jobs = ({
     }
   };
 
+  const handleExport = (format) => {
+    const exportRows = filteredJobs;
+    if (!exportRows.length) {
+      message.warning(`No ${entityLabel.toLowerCase()}s available to export`);
+      return;
+    }
+
+    const safeEntityName = entityLabel.toLowerCase();
+    const timestamp = moment().format('YYYYMMDD-HHmmss');
+
+    if (format === 'json') {
+      downloadTextFile(
+        JSON.stringify(exportRows.map(prepareRecordForExport), null, 2),
+        `${safeEntityName}s-${timestamp}.json`,
+        'application/json;charset=utf-8'
+      );
+      return;
+    }
+
+    downloadTextFile(
+      buildCsvFromJobs(exportRows),
+      `${safeEntityName}s-${timestamp}.csv`,
+      'text/csv;charset=utf-8'
+    );
+  };
+
+  const handleFileImport = async (event) => {
+    const file = event?.target?.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setImporting(true);
+
+    try {
+      const text = await file.text();
+      const isJson = file.name.toLowerCase().endsWith('.json');
+      const rows = isJson ? JSON.parse(text) : parseCsvText(text);
+      const sourceRows = Array.isArray(rows) ? rows : [rows];
+      const normalizedRows = sourceRows.map(normalizeImportedRecord).filter(Boolean);
+
+      if (!normalizedRows.length) {
+        message.error(`No valid ${entityLabel.toLowerCase()} records found in file`);
+        return;
+      }
+
+      const results = await Promise.allSettled(
+        normalizedRows.map((record) => api.create(record))
+      );
+
+      const successCount = results.filter((result) => result.status === 'fulfilled').length;
+      const failureCount = results.length - successCount;
+
+      if (successCount) {
+        message.success(
+          `${successCount} ${entityLabel.toLowerCase()}${successCount > 1 ? 's' : ''} imported successfully`
+        );
+        fetchJobs(1, pagination.pageSize);
+      }
+
+      if (failureCount) {
+        message.warning(
+          `${failureCount} record${failureCount > 1 ? 's were' : ' was'} skipped or failed during import`
+        );
+      }
+    } catch (error) {
+      console.error('Import Error:', error);
+      message.error(`Failed to import ${entityLabel.toLowerCase()} data`);
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const columns = [
+    {
+      title: 'S.No.',
+      key: 'serialNumber',
+      width: 80,
+      render: (_, __, index) => (
+        ((pagination.current - 1) * pagination.pageSize) + index + 1
+      ),
+    },
     {
       title: 'Job ID',
       key: 'publicId',
@@ -418,9 +837,59 @@ const Jobs = ({
         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
       >
         <h1>{pageTitle}</h1>
-        <Button type="primary" icon={<MdAdd />} onClick={() => openModal()}>
-          {addButtonLabel}
-        </Button>
+        <Space wrap>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,.json,application/json,text/csv"
+            style={{ display: 'none' }}
+            onChange={handleFileImport}
+          />
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'import',
+                  label: 'Import CSV / JSON',
+                  icon: <MdUpload />,
+                },
+                {
+                  key: 'export-csv',
+                  label: 'Export CSV',
+                  icon: <MdDownload />,
+                },
+                {
+                  key: 'export-json',
+                  label: 'Export JSON',
+                  icon: <MdDownload />,
+                },
+              ],
+              onClick: ({ key }) => {
+                if (key === 'import') {
+                  fileInputRef.current?.click();
+                  return;
+                }
+
+                if (key === 'export-csv') {
+                  handleExport('csv');
+                  return;
+                }
+
+                if (key === 'export-json') {
+                  handleExport('json');
+                }
+              },
+            }}
+            trigger={['click']}
+          >
+            <Button icon={<MdArrowDropDown />} loading={importing}>
+              Import / Export
+            </Button>
+          </Dropdown>
+          <Button type="primary" icon={<MdAdd />} onClick={() => openModal()}>
+            {addButtonLabel}
+          </Button>
+        </Space>
       </div>
 
       <Card style={{ marginBottom: 16 }}>
@@ -522,7 +991,7 @@ const Jobs = ({
       </Card>
 
       <Modal
-        title={editingJob ? 'Edit Job' : 'Add New Job'}
+        title={editingJob ? `Edit ${entityLabel}` : `Add New ${entityLabel}`}
         open={isModalOpen}
         onCancel={closeModal}
         footer={null}
@@ -701,7 +1170,7 @@ const Jobs = ({
           <Form.Item>
             <Space>
               <Button type="primary" htmlType="submit">
-                {editingJob ? 'Update Job' : 'Create Job'}
+                {editingJob ? `Update ${entityLabel}` : `Create ${entityLabel}`}
               </Button>
               <Button onClick={closeModal}>Cancel</Button>
             </Space>
