@@ -94,6 +94,7 @@ export const jobsAPI = {
   getAll: (params) => api.get("/jobs", { params }),
   create: (data) => api.post("/jobs", data),
   update: (id, data) => api.put(`/jobs/${id}`, data),
+  deleteAll: () => api.delete("/jobs"),
   delete: (id) => api.delete(`/jobs/${id}`),
 };
 
@@ -101,16 +102,27 @@ export const openingsAPI = {
   getAll: (params) => api.get("/openings", { params }),
   create: (data) => api.post("/openings", data),
   update: (id, data) => api.put(`/openings/${id}`, data),
+  deleteAll: () => api.delete("/openings"),
   delete: (id) => api.delete(`/openings/${id}`),
 };
 
 // â”€â”€â”€ APPLICATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const applicationsAPI = {
+  apply: (data, config = {}) => api.post('/applications/apply', data, config),
+
   // List with optional ?page=&limit=&status=&search=
   getAll: (params, config = {}) => api.get('/applications', { params, ...config }),
 
   // Single application detail
   getById: (id, config = {}) => api.get(`/applications/${id}`, config),
+
+  // Candidate dashboard
+  getMine: (params, config = {}) => api.get('/my-applications', { params, ...config }),
+  streamMine: (token) => {
+    const base = `${API_BASE_URL}/api/my-applications/stream`;
+    const url = token ? `${base}?token=${encodeURIComponent(token)}` : base;
+    return new EventSource(url);
+  },
 
   // Full application update
   update: (id, data, config = {}) => api.put(`/applications/${id}`, data, config),
@@ -132,11 +144,24 @@ export const applicationsAPI = {
       window.URL.revokeObjectURL(url);
     }),
 
-  // Update status: pending | reviewing | shortlisted | rejected | hired
+  // Update status: pending | shortlisted | rejected | accepted
   updateStatus: (id, status, config = {}) => api.patch(`/applications/${id}/status`, { status }, config),
 
   // Save admin notes
   updateNotes: (id, notes, config = {}) => api.patch(`/applications/${id}/notes`, { notes }, config),
+
+  // Send candidate response
+  updateResponse: (id, data, config = {}) =>
+    api.patch(
+      `/applications/${id}/response`,
+      {
+        status: data?.status || data?.responseStatus,
+        adminMessage: data?.adminMessage || data?.responseMessage || '',
+        nextStepInfo: data?.nextStepInfo || '',
+        candidateResponseDetails: data?.candidateResponseDetails || {},
+      },
+      config
+    ),
 
   // Delete application
   delete: (id, config = {}) => api.delete(`/applications/${id}`, config),

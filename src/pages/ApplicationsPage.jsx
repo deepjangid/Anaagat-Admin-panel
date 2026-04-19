@@ -8,6 +8,7 @@ const { Text } = Typography;
 const { Search } = Input;
 
 const STATUS_COLORS = {
+  applied: 'purple',
   pending: 'gold',
   reviewing: 'blue',
   shortlisted: 'cyan',
@@ -17,6 +18,7 @@ const STATUS_COLORS = {
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All' },
+  { value: 'applied', label: 'Applied' },
   { value: 'pending', label: 'Pending' },
   { value: 'reviewing', label: 'Reviewing' },
   { value: 'shortlisted', label: 'Shortlisted' },

@@ -115,6 +115,27 @@ export const getApplicationJobTitle = (record) =>
     ])
   );
 
+export const getApplicationClientName = (record) =>
+  displayValue(
+    pickFirst(record, [
+      'jobId.company',
+      'openingId.company',
+      'company',
+      'companyName',
+      'clientId.name',
+      'clientId.email',
+      'job.company',
+      'opening.company',
+    ])
+  );
+
+export const getApplicationJobSourceLabel = (record) => {
+  const role = toText(getByPath(record, 'clientId.role')).toLowerCase();
+  if (role === 'admin') return 'Admin Job';
+  if (role) return 'Client Job';
+  return 'Admin Job';
+};
+
 export const getApplicationName = (record) =>
   displayValue(
     pickFirst(record, ['fullName', 'name', 'candidateName']) ||

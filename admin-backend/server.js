@@ -10,6 +10,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import jobRoutes from "./routes/jobRoutes.js";
 import openingRoutes from "./routes/openingRoutes.js";
 import applicationsRoutes from "./routes/applicationsRoutes.js";
+import candidateApplicationsRoutes from "./routes/candidateApplicationsRoutes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -83,6 +84,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/openings", openingRoutes);
 app.use("/api/applications", applicationsRoutes);
+app.use("/api", candidateApplicationsRoutes);
 
 app.get("/", (req, res) => {
   res.send("Backend is running");

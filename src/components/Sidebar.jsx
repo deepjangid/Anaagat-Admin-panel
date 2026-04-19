@@ -45,6 +45,11 @@ const Sidebar = ({ collapsed, isMobile = false, onNavigate }) => {
       label: 'Applications',
     },
     {
+      key: '/candidate-response',
+      icon: <MdPeople size={20} />,
+      label: 'Candidate Response',
+    },
+    {
       key: '/candidate-profiles',
       icon: <MdPerson size={20} />,
       label: 'Candidate Profiles',

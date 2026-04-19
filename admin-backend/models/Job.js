@@ -24,6 +24,11 @@ const jobSchema = new mongoose.Schema(
     skills: [String],
     applicationDeadline: Date,
     contactEmail: String,
+    clientId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    ownerId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    postedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    sourceOpeningId: { type: mongoose.Schema.Types.ObjectId, ref: "Opening" },
 
     // Backward/legacy fields (some clients send these keys)
     jobTitle: String,

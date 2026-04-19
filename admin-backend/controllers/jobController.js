@@ -23,6 +23,7 @@ const formatJobForFrontend = (job) => {
   const type = raw?.type ?? raw?.employmentType ?? "";
   const category = raw?.category ?? raw?.department ?? "";
   const status = normalizeStatus(raw?.status);
+  const isActive = status === "active";
 
   return {
     _id: raw?._id,
@@ -43,7 +44,10 @@ const formatJobForFrontend = (job) => {
     skills: Array.isArray(raw?.skills) ? raw.skills : [],
     applicationDeadline: raw?.applicationDeadline ?? null,
     contactEmail: raw?.contactEmail ?? "",
-    status: status === "active" ? "Active" : "Closed",
+    status: isActive ? "Active" : "Closed",
+    canApply: isActive,
+    primaryActionLabel: isActive ? "Apply now" : "Closed",
+    secondaryActionLabel: "Read more",
     viewCount: raw?.viewCount || 0,
   };
 };
@@ -106,6 +110,11 @@ const normalizeJobPayload = (payload = {}) => {
     ...(body.contactEmail !== undefined
       ? { contactEmail: String(body.contactEmail || "").trim() }
       : {}),
+    ...(body.clientId !== undefined ? { clientId: body.clientId || null } : {}),
+    ...(body.ownerId !== undefined ? { ownerId: body.ownerId || null } : {}),
+    ...(body.createdBy !== undefined ? { createdBy: body.createdBy || null } : {}),
+    ...(body.postedBy !== undefined ? { postedBy: body.postedBy || null } : {}),
+    ...(body.sourceOpeningId !== undefined ? { sourceOpeningId: body.sourceOpeningId || null } : {}),
 
     ...(body.jobTitle !== undefined ? { jobTitle: body.jobTitle } : {}),
     ...(body.department !== undefined ? { department: body.department } : {}),
@@ -120,7 +129,12 @@ const normalizeJobPayload = (payload = {}) => {
 // ✅ GET ALL JOBS
 export const getJobs = async (req, res) => {
   try {
-    const jobsData = await Job.find();
+    const jobsData = await Job.find({
+      $or: [
+        { sourceOpeningId: { $exists: false } },
+        { sourceOpeningId: null },
+      ],
+    });
     const formattedJobs = jobsData.map(formatJobForFrontend);
 
     res.json({
@@ -182,5 +196,20 @@ export const deleteJob = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: "Error deleting job" });
+  }
+};
+
+export const deleteAllJobs = async (req, res) => {
+  try {
+    const result = await Job.deleteMany({});
+
+    res.json({
+      success: true,
+      message: "All jobs deleted",
+      deletedCount: result.deletedCount || 0,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Error deleting all jobs" });
   }
 };

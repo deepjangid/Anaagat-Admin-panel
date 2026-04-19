@@ -7,6 +7,8 @@ const Openings = () => (
     addButtonLabel="Add Opening"
     api={openingsAPI}
     entityLabel="Opening"
+    allowDeleteAll
+    includeClientId={false}
   />
 );
 

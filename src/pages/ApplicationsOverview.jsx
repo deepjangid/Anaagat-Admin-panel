@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Button, Card, Col, Descriptions, Drawer, Form, Input, Modal, Popconfirm, Row, Select, Space, Statistic, Table, Tag, Typography, message } from 'antd';
 import { MdCancel, MdCheckCircle, MdDelete, MdDownload, MdHourglassEmpty, MdPeople, MdRefresh, MdVisibility, MdWork } from 'react-icons/md';
 import { applicationsAPI } from '../services/api';
 import {
+  getApplicationClientName,
   getApplicationExperienceSummary,
   getApplicationJobTitle,
   getApplicationName,
@@ -17,18 +19,28 @@ const { Text } = Typography;
 
 const STATUS_COLORS = {
   pending: 'gold',
-  reviewing: 'blue',
-  shortlisted: 'cyan',
-  hired: 'green',
+  shortlisted: 'blue',
+  accepted: 'green',
   rejected: 'red',
 };
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All statuses' },
   { value: 'pending', label: 'Pending' },
-  { value: 'reviewing', label: 'Reviewing' },
   { value: 'shortlisted', label: 'Shortlisted' },
-  { value: 'hired', label: 'Hired' },
+  { value: 'accepted', label: 'Accepted' },
+  { value: 'rejected', label: 'Rejected' },
+];
+
+const RESPONSE_COLORS = {
+  pending: 'gold',
+  accepted: 'green',
+  rejected: 'red',
+};
+
+const RESPONSE_OPTIONS = [
+  { value: 'pending', label: 'Pending Reply' },
+  { value: 'accepted', label: 'Accepted' },
   { value: 'rejected', label: 'Rejected' },
 ];
 
@@ -60,6 +72,7 @@ const getApplicationPublicId = (app) => {
 };
 
 const ApplicationsOverview = () => {
+  const location = useLocation();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [statsLoading, setStatsLoading] = useState(false);
@@ -71,10 +84,20 @@ const ApplicationsOverview = () => {
   const [notes, setNotes] = useState('');
   const [notesLoading, setNotesLoading] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
+  const [responseStatus, setResponseStatus] = useState('pending');
+  const [responseMessage, setResponseMessage] = useState('');
+  const [nextStepInfo, setNextStepInfo] = useState('');
+  const [responseSaving, setResponseSaving] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [editingApplication, setEditingApplication] = useState(null);
   const [form] = Form.useForm();
+
+  const isCandidateResponsePage = location.pathname === '/candidate-response';
+  const pageTitle = isCandidateResponsePage ? 'Candidate Response' : 'Applications';
+  const pageDescription = isCandidateResponsePage
+    ? 'When a user applies, reply from here. Accept or reject the application and add next information for accepted candidates.'
+    : 'Review and manage all candidate applications for current job openings.';
 
   const fetchApplications = useCallback(async (page = 1, pageSize = 10, currentFilters = filters, signal) => {
     setLoading(true);
@@ -123,6 +146,9 @@ const ApplicationsOverview = () => {
   const handleView = useCallback((record) => {
     setSelectedApplication(record);
     setNotes(record?.notes || '');
+    setResponseStatus(record?.adminResponseStatus || 'pending');
+    setResponseMessage(record?.adminResponseMessage || '');
+    setNextStepInfo(record?.nextStepInfo || '');
     setDrawerOpen(true);
   }, []);
 
@@ -216,6 +242,33 @@ const ApplicationsOverview = () => {
     }
   }, [notes, selectedApplication]);
 
+  const handleSaveResponse = useCallback(async () => {
+    if (!selectedApplication?._id) return;
+    setResponseSaving(true);
+    try {
+      const res = await applicationsAPI.updateResponse(selectedApplication._id, {
+        responseStatus,
+        responseMessage,
+        nextStepInfo,
+      });
+      if (res.data.success) {
+        const updated = res.data.application;
+        message.success('Candidate response saved');
+        setApplications((prev) =>
+          prev.map((item) => (item._id === selectedApplication._id ? { ...item, ...updated } : item))
+        );
+        setSelectedApplication((prev) =>
+          prev?._id === selectedApplication._id ? { ...prev, ...updated } : prev
+        );
+      }
+    } catch (error) {
+      console.error(error);
+      message.error(error?.response?.data?.message || 'Failed to save candidate response');
+    } finally {
+      setResponseSaving(false);
+    }
+  }, [nextStepInfo, responseMessage, responseStatus, selectedApplication]);
+
   const handleDelete = useCallback(async (id) => {
     try {
       const res = await applicationsAPI.delete(id);
@@ -261,6 +314,26 @@ const ApplicationsOverview = () => {
         width: 230,
         render: (_, record) => getApplicationJobTitle(record),
       },
+      {
+        title: 'Client',
+        key: 'client',
+        width: 220,
+        render: (_, record) => getApplicationClientName(record),
+      },
+      ...(isCandidateResponsePage
+        ? [
+            {
+              title: 'Reply',
+              key: 'adminResponseStatus',
+              width: 160,
+              render: (_, record) => (
+                <Tag color={RESPONSE_COLORS[String(record?.adminResponseStatus || 'pending').toLowerCase()] || 'default'}>
+                  {String(record?.adminResponseStatus || 'pending').replace(/\b\w/g, (char) => char.toUpperCase())}
+                </Tag>
+              ),
+            },
+          ]
+        : []),
       {
         title: 'Phone',
         key: 'phone',
@@ -344,7 +417,7 @@ const ApplicationsOverview = () => {
         ),
       },
     ],
-    [handleDelete, handleOpenEdit, handleView]
+    [handleDelete, handleOpenEdit, handleView, isCandidateResponsePage]
   );
 
   const handleSearch = (value) => {
@@ -358,7 +431,8 @@ const ApplicationsOverview = () => {
   return (
     <div>
       <div className="page-header">
-        <h1>Applications</h1>
+        <h1>{pageTitle}</h1>
+        <p>{pageDescription}</p>
       </div>
 
       {stats && (
@@ -367,7 +441,7 @@ const ApplicationsOverview = () => {
             { title: 'Total', value: stats.total, icon: <MdPeople />, color: '#1890ff' },
             { title: 'Pending', value: stats.pending, icon: <MdHourglassEmpty />, color: '#faad14' },
             { title: 'Shortlisted', value: stats.shortlisted, icon: <MdWork />, color: '#13c2c2' },
-            { title: 'Hired', value: stats.hired, icon: <MdCheckCircle />, color: '#52c41a' },
+            { title: 'Accepted', value: stats.accepted, icon: <MdCheckCircle />, color: '#52c41a' },
             { title: 'Rejected', value: stats.rejected, icon: <MdCancel />, color: '#ff4d4f' },
           ].map((item) => (
             <Col xs={12} sm={8} lg={4} key={item.title}>
@@ -413,12 +487,12 @@ const ApplicationsOverview = () => {
             showTotal: (total) => `Total ${total} applications`,
           }}
           onChange={(nextPagination) => fetchApplications(nextPagination.current, nextPagination.pageSize, filters)}
-          scroll={{ x: 1720 }}
+          scroll={{ x: isCandidateResponsePage ? 2100 : 1940 }}
         />
       </Card>
 
       <Drawer
-        title={selectedApplication ? `Application - ${getApplicationName(selectedApplication)}` : ''}
+        title={selectedApplication ? `${isCandidateResponsePage ? 'Candidate Response' : 'Application'} - ${getApplicationName(selectedApplication)}` : ''}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={620}
@@ -472,6 +546,12 @@ const ApplicationsOverview = () => {
               </Descriptions.Item>
               <Descriptions.Item label="Candidate">{getApplicationName(selectedApplication)}</Descriptions.Item>
               <Descriptions.Item label="Applied For">{getApplicationJobTitle(selectedApplication)}</Descriptions.Item>
+              <Descriptions.Item label="Client">{getApplicationClientName(selectedApplication)}</Descriptions.Item>
+              <Descriptions.Item label="Reply Status">
+                <Tag color={RESPONSE_COLORS[String(selectedApplication.adminResponseStatus || 'pending').toLowerCase()] || 'default'}>
+                  {String(selectedApplication.adminResponseStatus || 'pending').replace(/\b\w/g, (char) => char.toUpperCase())}
+                </Tag>
+              </Descriptions.Item>
               <Descriptions.Item label="Email">{getUserEmail(selectedApplication)}</Descriptions.Item>
               <Descriptions.Item label="Phone">{getUserPhone(selectedApplication)}</Descriptions.Item>
               <Descriptions.Item label="Qualification">{selectedApplication.qualification || 'N/A'}</Descriptions.Item>
@@ -488,7 +568,52 @@ const ApplicationsOverview = () => {
                   ? new Date(selectedApplication.submittedAt || selectedApplication.createdAt).toLocaleString('en-IN')
                   : 'N/A'}
               </Descriptions.Item>
+              <Descriptions.Item label="Responded On">
+                {selectedApplication.respondedAt
+                  ? new Date(selectedApplication.respondedAt).toLocaleString('en-IN')
+                  : 'N/A'}
+              </Descriptions.Item>
             </Descriptions>
+
+            {isCandidateResponsePage && (
+              <Card title="Send Candidate Response" size="small">
+                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                  <div>
+                    <Text strong>Reply Type</Text>
+                    <Select
+                      value={responseStatus}
+                      style={{ width: '100%', marginTop: 8 }}
+                      options={RESPONSE_OPTIONS}
+                      onChange={setResponseStatus}
+                    />
+                  </div>
+                  <div>
+                    <Text strong>Response Message</Text>
+                    <Input.TextArea
+                      rows={4}
+                      value={responseMessage}
+                      onChange={(e) => setResponseMessage(e.target.value)}
+                      placeholder="Write the reply for the candidate..."
+                      style={{ marginTop: 8 }}
+                    />
+                  </div>
+                  <div>
+                    <Text strong>Next Information</Text>
+                    <Input.TextArea
+                      rows={4}
+                      value={nextStepInfo}
+                      onChange={(e) => setNextStepInfo(e.target.value)}
+                      placeholder="If accepted, add next interview details, documents, joining process, or follow-up instructions..."
+                      disabled={responseStatus !== 'accepted'}
+                      style={{ marginTop: 8 }}
+                    />
+                  </div>
+                  <Button type="primary" loading={responseSaving} onClick={handleSaveResponse}>
+                    Save Candidate Response
+                  </Button>
+                </Space>
+              </Card>
+            )}
 
             <Card title="Admin Notes" size="small">
               <Input.TextArea

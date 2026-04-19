@@ -13,6 +13,17 @@ const normalizeStringArray = (value) => {
   return value.map((item) => String(item || "").trim()).filter(Boolean);
 };
 
+const getAdminTrackingId = (user = {}) => {
+  const configuredAdminId = String(process.env.ADMIN_ID || "").trim();
+  if (configuredAdminId) return configuredAdminId;
+
+  if (user?.role === "admin" && user?.id) {
+    return user.id;
+  }
+
+  return user?.id || null;
+};
+
 const formatOpeningForFrontend = (opening) => {
   const raw = opening?.toObject ? opening.toObject() : opening;
 
@@ -22,6 +33,7 @@ const formatOpeningForFrontend = (opening) => {
   const type = raw?.type ?? raw?.employmentType ?? "";
   const category = raw?.category ?? raw?.department ?? "";
   const status = normalizeStatus(raw?.status);
+  const isActive = status === "active";
 
   return {
     _id: raw?._id,
@@ -42,7 +54,10 @@ const formatOpeningForFrontend = (opening) => {
     skills: Array.isArray(raw?.skills) ? raw.skills : [],
     applicationDeadline: raw?.applicationDeadline ?? null,
     contactEmail: raw?.contactEmail ?? "",
-    status: status === "active" ? "Active" : "Closed",
+    status: isActive ? "Active" : "Closed",
+    canApply: isActive,
+    primaryActionLabel: isActive ? "Apply now" : "Closed",
+    secondaryActionLabel: "Read more",
     viewCount: raw?.viewCount || 0,
   };
 };
@@ -114,6 +129,23 @@ const normalizeOpeningPayload = (payload = {}) => {
   };
 };
 
+const buildInternalOpeningPayload = (payload = {}, user = {}, { isCreate = false } = {}) => {
+  const normalized = normalizeOpeningPayload(payload);
+  const adminTrackingId = getAdminTrackingId(user);
+
+  delete normalized.clientId;
+
+  if (adminTrackingId) {
+    normalized.ownerId = adminTrackingId;
+    normalized.postedBy = adminTrackingId;
+    if (isCreate) {
+      normalized.createdBy = adminTrackingId;
+    }
+  }
+
+  return normalized;
+};
+
 export const getOpenings = async (req, res) => {
   try {
     const openingsData = await Opening.find();
@@ -134,7 +166,12 @@ export const getOpenings = async (req, res) => {
 
 export const createOpening = async (req, res) => {
   try {
-    const opening = await Opening.create(normalizeOpeningPayload(req.body));
+    console.log("[createOpening] user:", req.user?.id || null);
+    console.log("[createOpening] body:", JSON.stringify(req.body, null, 2));
+
+    const opening = await Opening.create(
+      buildInternalOpeningPayload(req.body, req.user, { isCreate: true })
+    );
 
     res.json({
       success: true,
@@ -151,7 +188,7 @@ export const updateOpening = async (req, res) => {
   try {
     const opening = await Opening.findByIdAndUpdate(
       req.params.id,
-      normalizeOpeningPayload(req.body),
+      buildInternalOpeningPayload(req.body, req.user),
       { returnDocument: "after" }
     );
 
@@ -175,5 +212,20 @@ export const deleteOpening = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: "Error deleting opening" });
+  }
+};
+
+export const deleteAllOpenings = async (req, res) => {
+  try {
+    const result = await Opening.deleteMany({});
+
+    res.json({
+      success: true,
+      message: "All openings deleted",
+      deletedCount: result.deletedCount || 0,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Error deleting all openings" });
   }
 };

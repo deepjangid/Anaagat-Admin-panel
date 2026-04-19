@@ -6,7 +6,9 @@ const getJwtSecret = () => {
 };
 
 export const requireAuth = (req, res, next) => {
-  const token = req.headers.authorization?.split(" ")[1];
+  const headerToken = req.headers.authorization?.split(" ")[1];
+  const queryToken = typeof req.query?.token === "string" ? req.query.token.trim() : "";
+  const token = headerToken || queryToken;
 
   if (!token) return res.status(401).json({ msg: "No token" });
 

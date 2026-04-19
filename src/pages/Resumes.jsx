@@ -26,7 +26,7 @@ const Resumes = () => {
   const fetchItems = useCallback(async (page = 1, pageSize = 20, currentFilters = filters, signal) => {
     setLoading(true);
     try {
-      const params = { page, limit: pageSize, hasResume: true };
+      const params = { page, limit: pageSize, hasResume: true, uniqueCandidates: true };
       if (currentFilters.search) params.search = currentFilters.search;
 
       const res = await applicationsAPI.getAll(params, { signal });

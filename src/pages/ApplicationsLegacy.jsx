@@ -38,6 +38,7 @@ const { Search } = Input;
 
 // ─── Status config ────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
+  applied:     { color: 'purple', label: 'Applied' },
   pending:     { color: 'gold',   label: 'Pending' },
   reviewing:   { color: 'blue',   label: 'Reviewing' },
   shortlisted: { color: 'cyan',   label: 'Shortlisted' },

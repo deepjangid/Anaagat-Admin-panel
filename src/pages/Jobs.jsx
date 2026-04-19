@@ -141,26 +141,33 @@ const IMPORT_ALIASES = {
   company: 'company',
   companyname: 'company',
   department: 'company',
+  clientid: 'clientId',
   location: 'location',
   address: 'location',
   joblocation: 'location',
   type: 'type',
   employmenttype: 'type',
   category: 'category',
+  urgencylevel: 'category',
   salary: 'fixedPrice',
+  experiencerequired: 'experience',
   experience: 'experience',
   genderrequirement: 'genderRequirement',
   qualification: 'qualification',
   agerequirement: 'ageRequirement',
   age: 'ageRequirement',
   fixedprice: 'fixedPrice',
+  minctclpa: 'salary.min',
+  maxctclpa: 'salary.max',
   salarymin: 'salary.min',
   salarymax: 'salary.max',
   salarycurrency: 'salary.currency',
   description: 'description',
+  jobdescription: 'description',
   requirements: 'requirements',
   responsibilities: 'responsibilities',
   skills: 'skills',
+  workmodes: 'skills',
   applicationdeadline: 'applicationDeadline',
   contactemail: 'contactEmail',
   status: 'status',
@@ -395,8 +402,12 @@ const normalizeImportedRecord = (rawRecord) => {
       record.company ? `Company: ${record.company}` : '',
       record.location ? `Location: ${record.location}` : '',
       originalValues.salary ? `Salary: ${originalValues.salary}` : '',
+      originalValues.minctclpa ? `Min CTC LPA: ${originalValues.minctclpa}` : '',
+      originalValues.maxctclpa ? `Max CTC LPA: ${originalValues.maxctclpa}` : '',
       record.qualification ? `Qualification: ${record.qualification}` : '',
       record.experience ? `Experience: ${record.experience}` : '',
+      originalValues.workmodes ? `Work Modes: ${originalValues.workmodes}` : '',
+      originalValues.urgencylevel ? `Urgency: ${originalValues.urgencylevel}` : '',
       originalValues.timing ? `Timing: ${originalValues.timing}` : '',
       originalValues.openings ? `Openings: ${originalValues.openings}` : '',
       originalValues.accommodation ? `Accommodation: ${originalValues.accommodation}` : '',
@@ -448,11 +459,61 @@ const downloadTextFile = (content, filename, mimeType) => {
   window.URL.revokeObjectURL(url);
 };
 
+const isMongoObjectId = (value) => /^[a-fA-F0-9]{24}$/.test(String(value || '').trim());
+
+const getStoredAuthUser = () => {
+  try {
+    const raw = localStorage.getItem('user');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const buildOwnershipPayload = ({ includeClientId = true } = {}) => {
+  const user = getStoredAuthUser();
+  const ownerId = [user?._id, user?.id, user?.userId].find((value) => isMongoObjectId(value));
+
+  if (!ownerId) return {};
+
+  return {
+    ...(includeClientId ? { clientId: ownerId } : {}),
+    ownerId,
+    createdBy: ownerId,
+    postedBy: ownerId,
+  };
+};
+
+const buildImportedOwnershipPayload = (record, ownershipPayload, { includeClientId = true } = {}) => {
+  const basePayload = {
+    ...ownershipPayload,
+    ...record,
+  };
+
+  if (!includeClientId) {
+    delete basePayload.clientId;
+    return basePayload;
+  }
+
+  const fileClientId = isMongoObjectId(record?.clientId) ? String(record.clientId).trim() : '';
+  const fallbackClientId = isMongoObjectId(ownershipPayload?.clientId)
+    ? String(ownershipPayload.clientId).trim()
+    : '';
+  const resolvedClientId = fileClientId || fallbackClientId;
+
+  return {
+    ...basePayload,
+    ...(resolvedClientId ? { clientId: resolvedClientId } : {}),
+  };
+};
+
 const Jobs = ({
   pageTitle = 'Client Requirements',
   addButtonLabel = 'Add New Job',
   api = jobsAPI,
   entityLabel = 'Job',
+  allowDeleteAll = true,
+  includeClientId = true,
 }) => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -473,6 +534,7 @@ const Jobs = ({
   });
   const [form] = Form.useForm();
   const fileInputRef = useRef(null);
+  const ownershipPayload = useMemo(() => buildOwnershipPayload({ includeClientId }), [includeClientId]);
 
   // Fetch jobs
   const fetchJobs = async (page = 1, pageSize = 10) => {
@@ -619,7 +681,10 @@ const Jobs = ({
         }
       } else {
         // Create new job
-        const response = await api.create(jobData);
+        const response = await api.create({
+          ...jobData,
+          ...ownershipPayload,
+        });
         if (response.data.success) {
           message.success(`${entityLabel} created successfully!`);
           fetchJobs(1, pagination.pageSize);
@@ -643,6 +708,26 @@ const Jobs = ({
     } catch (error) {
       console.error('Delete Error:', error);
       message.error(`Failed to delete ${entityLabel.toLowerCase()}`);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (typeof api.deleteAll !== 'function') return;
+
+    try {
+      const response = await api.deleteAll();
+      if (response.data.success) {
+        message.success(
+          response.data.deletedCount
+            ? `${response.data.deletedCount} ${entityLabel.toLowerCase()}s deleted successfully!`
+            : `All ${entityLabel.toLowerCase()}s deleted successfully!`
+        );
+        setPagination((prev) => ({ ...prev, current: 1, total: 0 }));
+        fetchJobs(1, pagination.pageSize);
+      }
+    } catch (error) {
+      console.error('Delete All Error:', error);
+      message.error(error.response?.data?.message || `Failed to delete all ${entityLabel.toLowerCase()}s`);
     }
   };
 
@@ -692,7 +777,9 @@ const Jobs = ({
       }
 
       const results = await Promise.allSettled(
-        normalizedRows.map((record) => api.create(record))
+        normalizedRows.map((record) =>
+          api.create(buildImportedOwnershipPayload(record, ownershipPayload, { includeClientId }))
+        )
       );
 
       const successCount = results.filter((result) => result.status === 'fulfilled').length;
@@ -886,6 +973,20 @@ const Jobs = ({
               Import / Export
             </Button>
           </Dropdown>
+          {allowDeleteAll && (
+            <Popconfirm
+              title={`Delete all ${entityLabel.toLowerCase()}s?`}
+              description={`This will permanently remove every ${entityLabel.toLowerCase()} from this section.`}
+              onConfirm={handleDeleteAll}
+              okText="Delete All"
+              cancelText="Cancel"
+              okButtonProps={{ danger: true }}
+            >
+              <Button danger icon={<MdDelete />}>
+                Delete All
+              </Button>
+            </Popconfirm>
+          )}
           <Button type="primary" icon={<MdAdd />} onClick={() => openModal()}>
             {addButtonLabel}
           </Button>

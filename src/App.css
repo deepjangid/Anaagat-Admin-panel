@@ -389,6 +389,195 @@ a {
   font-size: 13px;
 }
 
+.page-header p {
+  margin-top: 8px;
+  max-width: 760px;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.candidate-response-page {
+  --response-accent-a: rgba(15, 118, 110, 0.08);
+  --response-accent-b: rgba(245, 158, 11, 0.08);
+  --response-accent-border: rgba(15, 118, 110, 0.12);
+}
+
+.candidate-response-page.ui-layout-centered .response-card-list {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.candidate-response-page.ui-layout-wide .response-card-list {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.candidate-response-page.ui-layout-full .response-card-list {
+  max-width: none;
+  margin: 0;
+}
+
+.candidate-response-page.ui-spacing-compact .response-card-list,
+.candidate-response-page.ui-spacing-compact .candidate-dashboard-list {
+  gap: 12px;
+}
+
+.candidate-response-page.ui-spacing-comfortable .response-card-list,
+.candidate-response-page.ui-spacing-comfortable .candidate-dashboard-list {
+  gap: 18px;
+}
+
+.candidate-response-page.ui-spacing-comfortable .response-thread-card .ant-card-body {
+  padding: 10px !important;
+}
+
+.candidate-response-page.ui-spacing-comfortable .response-thread-existing,
+.candidate-response-page.ui-spacing-comfortable .candidate-application-message {
+  padding: 14px 16px;
+}
+
+.candidate-response-page.ui-tone-sand {
+  --response-accent-a: rgba(217, 119, 6, 0.1);
+  --response-accent-b: rgba(251, 191, 36, 0.1);
+  --response-accent-border: rgba(217, 119, 6, 0.14);
+}
+
+.candidate-response-page.ui-tone-slate {
+  --response-accent-a: rgba(71, 85, 105, 0.1);
+  --response-accent-b: rgba(148, 163, 184, 0.12);
+  --response-accent-border: rgba(71, 85, 105, 0.14);
+}
+
+.response-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.response-card-list,
+.candidate-dashboard-list {
+  display: grid;
+  gap: 12px;
+}
+
+.response-thread-card,
+.candidate-application-card {
+  border-radius: 24px;
+}
+
+.response-thread-card {
+  cursor: pointer;
+}
+
+.response-thread-top,
+.candidate-application-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.response-thread-name,
+.candidate-application-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.response-thread-meta,
+.candidate-application-company {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: #475569;
+  margin-top: 6px;
+}
+
+.response-thread-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-bottom: 10px;
+}
+
+.response-thread-existing,
+.candidate-application-message {
+  margin-bottom: 12px !important;
+  padding: 10px 12px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, var(--response-accent-a), var(--response-accent-b));
+  border: 1px solid var(--response-accent-border);
+}
+
+.response-thread-card .ant-card-body {
+  padding: 14px !important;
+}
+
+.response-thread-form {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.response-thread-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.96));
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.response-drawer-panel {
+  margin-bottom: 0;
+}
+
+.response-ui-panel {
+  margin-bottom: 0;
+}
+
+.response-thread-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.response-thread-field-wide {
+  min-width: 0;
+}
+
+.response-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.response-detail-card {
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.response-detail-card-wide {
+  grid-column: 1 / -1;
+}
+
+.response-detail-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
 @media (max-width: 991px) {
   .admin-sidebar.ant-layout-sider.is-mobile {
     box-shadow: 24px 0 40px rgba(8, 51, 68, 0.32);
@@ -405,6 +594,18 @@ a {
 
   .admin-content {
     padding: 18px;
+  }
+
+  .response-thread-form {
+    grid-template-columns: 1fr;
+  }
+
+  .response-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .response-detail-card-wide {
+    grid-column: auto;
   }
 }
 
@@ -433,6 +634,12 @@ a {
 
   .page-header-row {
     align-items: stretch;
+    flex-direction: column;
+  }
+
+  .response-toolbar,
+  .response-thread-top,
+  .candidate-application-top {
     flex-direction: column;
   }
 }

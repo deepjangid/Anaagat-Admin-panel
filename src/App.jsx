@@ -10,6 +10,7 @@ import Dashboard from './pages/DashboardPanel';
 import Jobs from './pages/Jobs';
 import Openings from './pages/Openings';
 import Applications from './pages/ApplicationsOverview';
+import CandidateResponsePage from './pages/CandidateResponsePage';
 import BannerPage from './pages/BannerPage';
 import AboutUsPage from './pages/AboutUsPage';
 import ServicesPage from './pages/ServicesPage';
@@ -19,6 +20,7 @@ import ClientProfilesPage from './pages/ClientProfilesView';
 import ContactMessages from './pages/ContactMessagesView';
 import Resumes from './pages/Resumes';
 import Blogs from './pages/Blogs';
+import MyApplicationsPage from './pages/MyApplicationsPage';
 
 import './App.css';
 
@@ -96,10 +98,12 @@ function App() {
           <Route path="job-requirements" element={<Jobs />} />
           <Route path="openings" element={<Openings />} />
           <Route path="applications" element={<Applications />} /> {/* ← NEW */}
+          <Route path="candidate-response" element={<CandidateResponsePage />} />
           <Route path="candidate-profiles" element={<CandidateProfilesPage />} />
           <Route path="client-profiles" element={<ClientProfilesPage />} />
           <Route path="contact-messages" element={<ContactMessages />} />
           <Route path="resumes" element={<Resumes />} />
+          <Route path="my-applications" element={<MyApplicationsPage />} />
           <Route path="banner" element={<BannerPage />} />
           <Route path="about-us" element={<AboutUsPage />} />
           <Route path="services" element={<ServicesPage />} />
