@@ -26,7 +26,7 @@ const normalizeMimeType = (mimeType) => String(mimeType || "").trim().toLowerCas
 
 const getExtensionForMimeType = (mimeType) => MIME_EXTENSION_MAP[normalizeMimeType(mimeType)] || "";
 
-const buildPublicBaseUrl = (req) => {
+export const buildPublicBaseUrl = (req) => {
   const configured =
     String(process.env.PUBLIC_BACKEND_URL || process.env.BACKEND_PUBLIC_URL || "").trim().replace(/\/+$/, "");
   if (configured) return configured;
@@ -41,6 +41,32 @@ export const isDataImageUrl = (value) => /^data:image\//i.test(String(value || "
 export const isHttpImageUrl = (value) => /^https?:\/\//i.test(String(value || "").trim());
 
 export const hasEmbeddedBase64Images = (html) => /<img\b[^>]*\bsrc=["']data:image\//i.test(String(html || ""));
+
+const isLocalHostName = (hostname) => {
+  const normalized = String(hostname || "").trim().toLowerCase();
+  return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1";
+};
+
+export const normalizePublicImageUrl = (value, req) => {
+  const raw = String(value || "").trim();
+  if (!raw || !isHttpImageUrl(raw)) return "";
+
+  try {
+    const parsed = new URL(raw);
+
+    if (isLocalHostName(parsed.hostname)) {
+      if (parsed.pathname.startsWith("/uploads/")) {
+        return `${buildPublicBaseUrl(req)}${parsed.pathname}${parsed.search}`;
+      }
+
+      return "";
+    }
+
+    return raw;
+  } catch {
+    return "";
+  }
+};
 
 const decodeDataImageUrl = (dataUrl) => {
   const match = String(dataUrl || "").trim().match(DATA_IMAGE_REGEX);
@@ -86,7 +112,7 @@ export const normalizeImageUrl = async (value, req, folder = "blog-content") => 
     return saveImageBuffer({ buffer, mimeType, req, folder });
   }
 
-  if (isHttpImageUrl(raw)) return raw;
+  if (isHttpImageUrl(raw)) return normalizePublicImageUrl(raw, req);
   return "";
 };
 
@@ -104,6 +130,20 @@ export const normalizeContentImages = async (html, req) => {
       const uploadedUrl = await normalizeImageUrl(src, req, "blog-content");
       const safeReplacement = fullMatch.replace(`${quote}${src}${quote}`, `${quote}${uploadedUrl}${quote}`);
       nextHtml = nextHtml.replace(fullMatch, safeReplacement);
+      continue;
+    }
+
+    if (isHttpImageUrl(src)) {
+      const normalizedUrl = normalizePublicImageUrl(src, req);
+      if (!normalizedUrl) {
+        nextHtml = nextHtml.replace(fullMatch, "");
+        continue;
+      }
+
+      if (normalizedUrl !== src) {
+        const safeReplacement = fullMatch.replace(`${quote}${src}${quote}`, `${quote}${normalizedUrl}${quote}`);
+        nextHtml = nextHtml.replace(fullMatch, safeReplacement);
+      }
       continue;
     }
 

@@ -341,6 +341,16 @@ a {
   margin-bottom: 1em;
 }
 
+.ql-container {
+  min-height: 320px;
+}
+
+.ql-editor {
+  min-height: 260px;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
 .ql-editor img {
   width: 100%;
   border-radius: 18px;

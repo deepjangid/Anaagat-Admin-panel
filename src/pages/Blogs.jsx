@@ -1,5 +1,5 @@
-import { Suspense, lazy, useEffect, useRef, useState } from 'react';
-import 'react-quill/dist/quill.snow.css';
+import React, { useEffect, useRef, useState } from 'react';
+import 'react-quill-new/dist/quill.snow.css';
 import { Button, Card, Form, Image, Input, Modal, Popconfirm, Space, Table, Tag, Typography, message } from 'antd';
 import { MdAdd, MdDelete, MdEdit, MdRefresh, MdUpload, MdVisibility } from 'react-icons/md';
 import { blogPostsAPI, blogUploadsAPI } from '../services/api';
@@ -7,7 +7,6 @@ import BlogContentRenderer from '../components/BlogContentRenderer';
 
 const { TextArea } = Input;
 const { Paragraph, Text } = Typography;
-const ReactQuill = lazy(() => import('react-quill'));
 
 const quillFormats = [
   'header',
@@ -59,6 +58,33 @@ const stripHtml = (value) =>
 const hasEmbeddedBase64Image = (value) => /<img\b[^>]*\bsrc=["']data:image\//i.test(String(value || ''));
 const isValidImageUrl = (value) => /^https?:\/\//i.test(String(value || '').trim());
 
+class EditorErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error) {
+    console.error('ReactQuill render error:', error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ minHeight: 260, padding: 16, display: 'flex', alignItems: 'center' }}>
+          <Text type="danger">Blog editor could not load this content. Try refreshing the page.</Text>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 const Blogs = () => {
   const [items, setItems] = useState([]);
   const [open, setOpen] = useState(false);
@@ -66,7 +92,8 @@ const Blogs = () => {
   const [loading, setLoading] = useState(false);
   const [readingBlog, setReadingBlog] = useState(null);
   const [editorHtml, setEditorHtml] = useState('');
-  const [isClientEditorReady, setIsClientEditorReady] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [QuillComponent, setQuillComponent] = useState(null);
   const [form] = Form.useForm();
   const fileInputRef = useRef(null);
   const quillRef = useRef(null);
@@ -94,14 +121,39 @@ const Blogs = () => {
   }, []);
 
   useEffect(() => {
-    const hasWindow = typeof window !== 'undefined';
-    console.log('[blogs] page mounted', { hasWindow });
-    setIsClientEditorReady(hasWindow);
+    setMounted(true);
   }, []);
 
   useEffect(() => {
-    console.log('[blogs] editor modal state', { open, editingId });
-  }, [open, editingId]);
+    let active = true;
+
+    const loadEditor = async () => {
+      try {
+        if (!mounted || typeof window === 'undefined') return;
+        const module = await import('react-quill-new');
+        if (active) {
+          setQuillComponent(() => module.default);
+        }
+      } catch (error) {
+        console.error('ReactQuill load error:', error);
+      }
+    };
+
+    loadEditor();
+
+    return () => {
+      active = false;
+    };
+  }, [mounted]);
+
+  useEffect(() => {
+    console.log('Editor mounted', mounted);
+  }, [mounted]);
+
+  useEffect(() => {
+    if (!open) return;
+    console.log('Content:', editorHtml);
+  }, [open, editorHtml]);
 
   const closeModal = () => {
     setOpen(false);
@@ -118,13 +170,14 @@ const Blogs = () => {
   };
 
   const handleEdit = (item) => {
+    const rawContent = String(item.content || '');
     setEditingId(item._id);
-    setEditorHtml(String(item.content || ''));
+    setEditorHtml(rawContent);
     form.setFieldsValue({
       ...emptyBlog,
       ...item,
       tags: normalizeMultilineField(item.tags),
-      content: String(item.content || ''),
+      content: rawContent,
     });
     setOpen(true);
   };
@@ -195,7 +248,6 @@ const Blogs = () => {
         const imageUrl = await uploadImageFile(file);
         const quill = quillRef.current?.getEditor?.();
         if (!quill) {
-          console.log('[blogs] quill ref unavailable during image insert');
           message.error('Editor is not ready yet.');
           return;
         }
@@ -216,9 +268,8 @@ const Blogs = () => {
       container: [
         ['bold', 'italic', 'underline'],
         [{ header: [1, 2, 3, false] }],
-        ['link', 'image'],
         [{ list: 'ordered' }, { list: 'bullet' }],
-        ['clean'],
+        ['link', 'image'],
       ],
       handlers: {
         image: handleEditorImageInsert,
@@ -508,21 +559,22 @@ const Blogs = () => {
               help={stripHtml(editorHtml) ? '' : 'Please enter the blog content.'}
             >
               <div className="blog-editor-shell overflow-hidden">
-                {isClientEditorReady ? (
-                  <Suspense fallback={<div style={{ padding: 16 }}><Text type="secondary">Loading editor...</Text></div>}>
-                    <ReactQuill
+                {mounted && QuillComponent ? (
+                  <EditorErrorBoundary>
+                    <QuillComponent
+                      key={editingId || 'new-blog'}
                       ref={quillRef}
                       theme="snow"
-                      value={editorHtml}
+                      value={editorHtml || ''}
                       onChange={setEditorHtml}
                       modules={quillModules}
                       formats={quillFormats}
                       placeholder="Start writing like Medium or Blogger..."
                     />
-                  </Suspense>
+                  </EditorErrorBoundary>
                 ) : (
-                  <div style={{ padding: 16 }}>
-                    <Text type="secondary">Editor is initializing...</Text>
+                  <div style={{ minHeight: 260, padding: 16, display: 'flex', alignItems: 'center' }}>
+                    <Text type="secondary">Blog editor is loading...</Text>
                   </div>
                 )}
               </div>
@@ -559,7 +611,11 @@ const Blogs = () => {
                     </Paragraph>
                   ) : null}
 
-                  <BlogContentRenderer content={editorHtml} />
+                  {stripHtml(editorHtml) ? (
+                    <BlogContentRenderer content={editorHtml} />
+                  ) : (
+                    <Text type="secondary">Content preview will appear here as you write.</Text>
+                  )}
                 </div>
               </div>
             </Form.Item>
@@ -622,7 +678,11 @@ const Blogs = () => {
                   </Space>
                 ) : null}
 
-                <BlogContentRenderer content={readingBlog.content} className="pt-2" />
+                {stripHtml(readingBlog.content) ? (
+                  <BlogContentRenderer content={readingBlog.content} className="pt-2" />
+                ) : (
+                  <Text type="secondary">No blog content available.</Text>
+                )}
               </Space>
             </article>
           </div>
