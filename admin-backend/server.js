@@ -11,6 +11,7 @@ import jobRoutes from "./routes/jobRoutes.js";
 import openingRoutes from "./routes/openingRoutes.js";
 import applicationsRoutes from "./routes/applicationsRoutes.js";
 import candidateApplicationsRoutes from "./routes/candidateApplicationsRoutes.js";
+import blogPostRoutes from "./routes/blogPostRoutes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -74,7 +75,8 @@ console.log(
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
 
-app.use(express.json());
+app.use(express.json({ limit: "25mb" }));
+app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
 app.get("/api/health", (req, res) => {
   res.json({ ok: true });
@@ -83,6 +85,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/openings", openingRoutes);
+app.use("/api/blogposts", blogPostRoutes);
 app.use("/api/applications", applicationsRoutes);
 app.use("/api", candidateApplicationsRoutes);
 

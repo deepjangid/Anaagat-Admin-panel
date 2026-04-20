@@ -301,6 +301,56 @@ a {
   font-size: 15px;
 }
 
+.ql-toolbar.ql-snow {
+  border: none !important;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9) !important;
+  padding: 12px 14px !important;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.95), rgba(255, 255, 255, 0.95));
+}
+
+.ql-container.ql-snow {
+  border: none !important;
+  min-height: 320px;
+  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+}
+
+.ql-editor {
+  min-height: 320px;
+  padding: 22px 20px !important;
+  font-size: 16px;
+  line-height: 1.9;
+  color: #0f172a;
+}
+
+.ql-editor.ql-blank::before {
+  left: 20px !important;
+  right: 20px !important;
+  font-style: normal !important;
+  color: #94a3b8 !important;
+}
+
+.ql-editor h1,
+.ql-editor h2,
+.ql-editor h3 {
+  color: #0f172a;
+  font-weight: 700;
+  margin: 1.2em 0 0.5em;
+}
+
+.ql-editor p {
+  margin-bottom: 1em;
+}
+
+.ql-editor img {
+  width: 100%;
+  border-radius: 18px;
+  margin: 1rem 0;
+}
+
+.blog-article-card .ant-image {
+  display: block;
+}
+
 .stats-card {
   text-align: center;
 }

@@ -106,6 +106,14 @@ export const openingsAPI = {
   delete: (id) => api.delete(`/openings/${id}`),
 };
 
+export const blogPostsAPI = {
+  getAll: (params) => api.get("/blogposts", { params }),
+  getPublished: (params) => api.get("/blogposts", { params: { published: true, ...params } }),
+  create: (data) => api.post("/blogposts", data),
+  update: (id, data) => api.put(`/blogposts/${id}`, data),
+  delete: (id) => api.delete(`/blogposts/${id}`),
+};
+
 // â”€â”€â”€ APPLICATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const applicationsAPI = {
   apply: (data, config = {}) => api.post('/applications/apply', data, config),
