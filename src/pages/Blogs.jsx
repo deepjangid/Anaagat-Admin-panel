@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
-import ReactQuill from 'react-quill';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import 'react-quill/dist/quill.snow.css';
 import { Button, Card, Form, Image, Input, Modal, Popconfirm, Space, Table, Tag, Typography, message } from 'antd';
 import { MdAdd, MdDelete, MdEdit, MdRefresh, MdUpload, MdVisibility } from 'react-icons/md';
@@ -8,6 +7,7 @@ import BlogContentRenderer from '../components/BlogContentRenderer';
 
 const { TextArea } = Input;
 const { Paragraph, Text } = Typography;
+const ReactQuill = lazy(() => import('react-quill'));
 
 const quillFormats = [
   'header',
@@ -66,6 +66,7 @@ const Blogs = () => {
   const [loading, setLoading] = useState(false);
   const [readingBlog, setReadingBlog] = useState(null);
   const [editorHtml, setEditorHtml] = useState('');
+  const [isClientEditorReady, setIsClientEditorReady] = useState(false);
   const [form] = Form.useForm();
   const fileInputRef = useRef(null);
   const quillRef = useRef(null);
@@ -91,6 +92,16 @@ const Blogs = () => {
   useEffect(() => {
     fetchBlogs();
   }, []);
+
+  useEffect(() => {
+    const hasWindow = typeof window !== 'undefined';
+    console.log('[blogs] page mounted', { hasWindow });
+    setIsClientEditorReady(hasWindow);
+  }, []);
+
+  useEffect(() => {
+    console.log('[blogs] editor modal state', { open, editingId });
+  }, [open, editingId]);
 
   const closeModal = () => {
     setOpen(false);
@@ -184,6 +195,7 @@ const Blogs = () => {
         const imageUrl = await uploadImageFile(file);
         const quill = quillRef.current?.getEditor?.();
         if (!quill) {
+          console.log('[blogs] quill ref unavailable during image insert');
           message.error('Editor is not ready yet.');
           return;
         }
@@ -496,15 +508,23 @@ const Blogs = () => {
               help={stripHtml(editorHtml) ? '' : 'Please enter the blog content.'}
             >
               <div className="blog-editor-shell overflow-hidden">
-                <ReactQuill
-                  ref={quillRef}
-                  theme="snow"
-                  value={editorHtml}
-                  onChange={setEditorHtml}
-                  modules={quillModules}
-                  formats={quillFormats}
-                  placeholder="Start writing like Medium or Blogger..."
-                />
+                {isClientEditorReady ? (
+                  <Suspense fallback={<div style={{ padding: 16 }}><Text type="secondary">Loading editor...</Text></div>}>
+                    <ReactQuill
+                      ref={quillRef}
+                      theme="snow"
+                      value={editorHtml}
+                      onChange={setEditorHtml}
+                      modules={quillModules}
+                      formats={quillFormats}
+                      placeholder="Start writing like Medium or Blogger..."
+                    />
+                  </Suspense>
+                ) : (
+                  <div style={{ padding: 16 }}>
+                    <Text type="secondary">Editor is initializing...</Text>
+                  </div>
+                )}
               </div>
             </Form.Item>
 
