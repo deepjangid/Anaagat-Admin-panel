@@ -347,6 +347,16 @@ a {
   margin: 1rem 0;
 }
 
+.prose img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin: 16px 0;
+  border-radius: 12px;
+  object-fit: contain;
+}
+
 .blog-article-card .ant-image {
   display: block;
 }

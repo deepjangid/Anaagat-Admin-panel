@@ -1,4 +1,9 @@
 import BlogPost from "../models/BlogPost.js";
+import {
+  hasEmbeddedBase64Images,
+  normalizeContentImages,
+  normalizeImageUrl,
+} from "../utils/blogImageStorage.js";
 
 const slugify = (value) =>
   String(value || "")
@@ -59,7 +64,7 @@ const convertLegacyContentToHtml = (value) => {
   return String(value || "").trim();
 };
 
-const normalizePayload = (payload = {}) => {
+const normalizePayload = async (payload = {}, req) => {
   const body = payload && typeof payload === "object" ? payload : {};
   const normalizedStatus =
     body.status !== undefined || body.isPublished === undefined
@@ -72,7 +77,7 @@ const normalizePayload = (payload = {}) => {
   return {
     ...(body.title !== undefined ? { title: String(body.title || "").trim() } : {}),
     ...(body.slug !== undefined ? { slug: slugify(body.slug) || null } : {}),
-    ...(body.coverImage !== undefined ? { coverImage: String(body.coverImage || "").trim() } : {}),
+    ...(body.coverImage !== undefined ? { coverImage: await normalizeImageUrl(body.coverImage, req, "blog-covers") } : {}),
     ...(body.category !== undefined ? { category: String(body.category || "").trim() } : {}),
     ...(body.author !== undefined ? { author: String(body.author || "").trim() } : {}),
     ...((body.publishDate !== undefined || body.publishedAt !== undefined)
@@ -87,7 +92,9 @@ const normalizePayload = (payload = {}) => {
       ? { status: normalizedStatus, isPublished }
       : {}),
     ...(body.excerpt !== undefined ? { excerpt: String(body.excerpt || "").trim() } : {}),
-    ...(body.content !== undefined ? { content: convertLegacyContentToHtml(body.content) } : {}),
+    ...(body.content !== undefined
+      ? { content: await normalizeContentImages(convertLegacyContentToHtml(body.content), req) }
+      : {}),
     ...(body.tags !== undefined ? { tags: normalizeStringArray(body.tags) } : {}),
     ...(body.readingTime !== undefined ? { readingTime: String(body.readingTime || "").trim() } : {}),
   };
@@ -172,7 +179,29 @@ export const getBlogPosts = async (req, res) => {
     console.log("[blogposts:get] mongo filter:", JSON.stringify(query));
 
     const blogPosts = await BlogPost.find(query).sort({ publishDate: -1, createdAt: -1 });
-    const data = blogPosts.map(formatBlogPost);
+    const data = [];
+
+    for (const blogPost of blogPosts) {
+      const updates = {};
+      const normalizedCoverImage = await normalizeImageUrl(blogPost.coverImage, req, "blog-covers");
+      const normalizedContent = await normalizeContentImages(convertLegacyContentToHtml(blogPost.content), req);
+
+      if (String(blogPost.coverImage || "") !== normalizedCoverImage) {
+        updates.coverImage = normalizedCoverImage;
+      }
+
+      if (String(convertLegacyContentToHtml(blogPost.content) || "") !== normalizedContent) {
+        updates.content = normalizedContent;
+      }
+
+      if (Object.keys(updates).length) {
+        console.log("[blogposts:get] migrated media:", blogPost._id, JSON.stringify(updates));
+        await BlogPost.findByIdAndUpdate(blogPost._id, updates, { runValidators: true });
+        Object.assign(blogPost, updates);
+      }
+
+      data.push(formatBlogPost(blogPost));
+    }
 
     console.log("[blogposts:get] returned blogs:", data.length);
 
@@ -190,10 +219,17 @@ export const getBlogPosts = async (req, res) => {
 
 export const createBlogPost = async (req, res) => {
   try {
-    const payload = normalizePayload(req.body);
+    const payload = await normalizePayload(req.body, req);
 
     console.log("[blogposts:create] incoming:", JSON.stringify(req.body));
     console.log("[blogposts:create] normalized:", JSON.stringify(payload));
+
+    if (hasEmbeddedBase64Images(payload.content)) {
+      return res.status(400).json({
+        success: false,
+        message: "Embedded base64 images are not allowed. Please upload images and use the returned URL.",
+      });
+    }
 
     if (!payload.title || !String(payload.content || "").trim()) {
       return res.status(400).json({
@@ -222,11 +258,18 @@ export const createBlogPost = async (req, res) => {
 
 export const updateBlogPost = async (req, res) => {
   try {
-    const payload = normalizePayload(req.body);
+    const payload = await normalizePayload(req.body, req);
 
     console.log("[blogposts:update] id:", req.params.id);
     console.log("[blogposts:update] incoming:", JSON.stringify(req.body));
     console.log("[blogposts:update] normalized:", JSON.stringify(payload));
+
+    if ("content" in payload && hasEmbeddedBase64Images(payload.content)) {
+      return res.status(400).json({
+        success: false,
+        message: "Embedded base64 images are not allowed. Please upload images and use the returned URL.",
+      });
+    }
 
     if ("title" in payload && !payload.title) {
       return res.status(400).json({ success: false, message: "Title is required" });

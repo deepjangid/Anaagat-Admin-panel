@@ -3,21 +3,11 @@ import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import { Button, Card, Form, Image, Input, Modal, Popconfirm, Space, Table, Tag, Typography, message } from 'antd';
 import { MdAdd, MdDelete, MdEdit, MdRefresh, MdUpload, MdVisibility } from 'react-icons/md';
-import { blogPostsAPI } from '../services/api';
+import { blogPostsAPI, blogUploadsAPI } from '../services/api';
 import BlogContentRenderer from '../components/BlogContentRenderer';
 
 const { TextArea } = Input;
 const { Paragraph, Text } = Typography;
-
-const quillModules = {
-  toolbar: [
-    [{ header: [1, 2, 3, false] }],
-    ['bold', 'italic', 'underline'],
-    [{ list: 'ordered' }, { list: 'bullet' }],
-    ['link', 'image'],
-    ['clean'],
-  ],
-};
 
 const quillFormats = [
   'header',
@@ -66,13 +56,8 @@ const stripHtml = (value) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-const readFileAsDataUrl = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ''));
-    reader.onerror = () => reject(new Error('Failed to read image file.'));
-    reader.readAsDataURL(file);
-  });
+const hasEmbeddedBase64Image = (value) => /<img\b[^>]*\bsrc=["']data:image\//i.test(String(value || ''));
+const isValidImageUrl = (value) => /^https?:\/\//i.test(String(value || '').trim());
 
 const Blogs = () => {
   const [items, setItems] = useState([]);
@@ -83,6 +68,7 @@ const Blogs = () => {
   const [editorHtml, setEditorHtml] = useState('');
   const [form] = Form.useForm();
   const fileInputRef = useRef(null);
+  const quillRef = useRef(null);
 
   const fetchBlogs = async () => {
     setLoading(true);
@@ -132,6 +118,30 @@ const Blogs = () => {
     setOpen(true);
   };
 
+  const uploadImageFile = async (file) => {
+    if (!file) {
+      throw new Error('Image file is required.');
+    }
+
+    if (!String(file.type || '').startsWith('image/')) {
+      throw new Error('Please select an image file.');
+    }
+
+    const maxFileSizeBytes = 10 * 1024 * 1024;
+    if (file.size > maxFileSizeBytes) {
+      throw new Error('Image is too large. Please choose an image smaller than 10 MB.');
+    }
+
+    const response = await blogUploadsAPI.uploadImage(file);
+    const imageUrl = String(response.data?.url || '').trim();
+
+    if (!isValidImageUrl(imageUrl)) {
+      throw new Error('Uploaded image URL is invalid.');
+    }
+
+    return imageUrl;
+  };
+
   const handleDelete = async (id) => {
     try {
       const response = await blogPostsAPI.delete(id);
@@ -150,29 +160,72 @@ const Blogs = () => {
     event.target.value = '';
     if (!file) return;
 
-    if (!String(file.type || '').startsWith('image/')) {
-      message.error('Please select an image file.');
-      return;
-    }
-
-    const maxFileSizeBytes = 15 * 1024 * 1024;
-    if (file.size > maxFileSizeBytes) {
-      message.error('Image is too large. Please choose an image smaller than 15 MB.');
-      return;
-    }
-
     try {
-      const dataUrl = await readFileAsDataUrl(file);
-      form.setFieldValue('coverImage', dataUrl);
-      message.success('Cover image selected successfully.');
+      const imageUrl = await uploadImageFile(file);
+      form.setFieldValue('coverImage', imageUrl);
+      message.success('Cover image uploaded successfully.');
     } catch (error) {
-      console.error('Cover image read error:', error);
-      message.error('Failed to load image from device.');
+      console.error('Cover image upload error:', error);
+      message.error(error.message || 'Failed to upload image from device.');
     }
+  };
+
+  const handleEditorImageInsert = () => {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/*');
+    input.click();
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      try {
+        const imageUrl = await uploadImageFile(file);
+        const quill = quillRef.current?.getEditor?.();
+        if (!quill) {
+          message.error('Editor is not ready yet.');
+          return;
+        }
+
+        const range = quill.getSelection(true) || { index: quill.getLength(), length: 0 };
+        quill.insertEmbed(range.index, 'image', imageUrl, 'user');
+        quill.setSelection(range.index + 1, 0, 'silent');
+        message.success('Editor image uploaded successfully.');
+      } catch (error) {
+        console.error('Editor image upload error:', error);
+        message.error(error.message || 'Failed to upload editor image.');
+      }
+    };
+  };
+
+  const quillModules = {
+    toolbar: {
+      container: [
+        ['bold', 'italic', 'underline'],
+        [{ header: [1, 2, 3, false] }],
+        ['link', 'image'],
+        [{ list: 'ordered' }, { list: 'bullet' }],
+        ['clean'],
+      ],
+      handlers: {
+        image: handleEditorImageInsert,
+      },
+    },
   };
 
   const handleSubmit = async (values) => {
     try {
+      if (values.coverImage && !isValidImageUrl(values.coverImage)) {
+        message.error('Cover image must be a valid http or https URL.');
+        return;
+      }
+
+      if (hasEmbeddedBase64Image(editorHtml)) {
+        message.error('Base64 images are not allowed. Please upload images using the editor image button.');
+        return;
+      }
+
       const payload = {
         ...values,
         tags: splitMultilineField(values.tags),
@@ -444,6 +497,7 @@ const Blogs = () => {
             >
               <div className="blog-editor-shell overflow-hidden">
                 <ReactQuill
+                  ref={quillRef}
                   theme="snow"
                   value={editorHtml}
                   onChange={setEditorHtml}

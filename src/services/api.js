@@ -114,6 +114,16 @@ export const blogPostsAPI = {
   delete: (id) => api.delete(`/blogposts/${id}`),
 };
 
+export const blogUploadsAPI = {
+  uploadImage: (file) =>
+    api.post("/uploads/blog-image", file, {
+      headers: {
+        "Content-Type": file?.type || "application/octet-stream",
+      },
+      transformRequest: [(data) => data],
+    }),
+};
+
 // â”€â”€â”€ APPLICATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const applicationsAPI = {
   apply: (data, config = {}) => api.post('/applications/apply', data, config),

@@ -12,6 +12,7 @@ import openingRoutes from "./routes/openingRoutes.js";
 import applicationsRoutes from "./routes/applicationsRoutes.js";
 import candidateApplicationsRoutes from "./routes/candidateApplicationsRoutes.js";
 import blogPostRoutes from "./routes/blogPostRoutes.js";
+import uploadRoutes from "./routes/uploadRoutes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,6 +21,7 @@ dotenv.config({ path: path.join(__dirname, ".env") });
 dotenv.config({ path: path.join(__dirname, "..", ".env"), override: false });
 
 const app = express();
+app.set("trust proxy", true);
 
 const stripWrappingQuotes = (value) => {
   const v = String(value || "").trim();
@@ -77,6 +79,7 @@ app.options(/.*/, cors(corsOptions));
 
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true, limit: "25mb" }));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.get("/api/health", (req, res) => {
   res.json({ ok: true });
@@ -86,6 +89,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/openings", openingRoutes);
 app.use("/api/blogposts", blogPostRoutes);
+app.use("/api/uploads", uploadRoutes);
 app.use("/api/applications", applicationsRoutes);
 app.use("/api", candidateApplicationsRoutes);
 

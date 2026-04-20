@@ -51,6 +51,12 @@ export const sanitizeBlogHtml = (value) => {
   wrapper.innerHTML = sanitized;
 
   wrapper.querySelectorAll('img').forEach((image) => {
+    const src = String(image.getAttribute('src') || '').trim();
+    if (!/^https?:\/\//i.test(src)) {
+      image.remove();
+      return;
+    }
+
     image.classList.add('w-full', 'rounded-xl', 'my-4');
     image.removeAttribute('width');
     image.removeAttribute('height');
