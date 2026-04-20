@@ -40,8 +40,28 @@ export const convertLegacyContentToHtml = (value) => {
   return String(value || '');
 };
 
+const decodeHtmlIfNeeded = (value) => {
+  const rawValue = String(value || '');
+  const normalized = rawValue.replace(/&nbsp;/gi, ' ');
+
+  if (typeof document === 'undefined') {
+    return normalized;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = normalized;
+  const decoded = textarea.value;
+
+  // If encoded tags were stored as text, decode them back into renderable HTML.
+  if (/(?:&lt;|&gt;|&#60;|&#62;)/i.test(normalized)) {
+    return decoded;
+  }
+
+  return normalized;
+};
+
 export const sanitizeBlogHtml = (value) => {
-  const rawHtml = convertLegacyContentToHtml(value);
+  const rawHtml = decodeHtmlIfNeeded(convertLegacyContentToHtml(value));
   const sanitized = DOMPurify.sanitize(rawHtml, {
     ALLOWED_TAGS,
     ALLOWED_ATTR,
@@ -69,7 +89,7 @@ export const sanitizeBlogHtml = (value) => {
     anchor.setAttribute('rel', 'noreferrer noopener');
   });
 
-  return wrapper.innerHTML;
+  return wrapper.innerHTML.replace(/&nbsp;/gi, ' ');
 };
 
 const BlogContentRenderer = ({ content, className = '' }) => (
