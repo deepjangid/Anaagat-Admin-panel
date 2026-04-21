@@ -21,6 +21,8 @@ import ContactMessages from './pages/ContactMessagesView';
 import Resumes from './pages/Resumes';
 import Blogs from './pages/Blogs';
 import MyApplicationsPage from './pages/MyApplicationsPage';
+import Inbox from './pages/Inbox';
+import { useMessages } from './hooks/useMessages';
 
 import './App.css';
 
@@ -34,6 +36,7 @@ const ProtectedRoute = () => {
 const AdminLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const inbox = useMessages();
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 991px)');
@@ -59,7 +62,7 @@ const AdminLayout = () => {
 
   return (
     <Layout className="admin-app-shell" style={{ minHeight: '100vh' }}>
-      <Sidebar collapsed={collapsed} isMobile={isMobile} onNavigate={() => {
+      <Sidebar collapsed={collapsed} isMobile={isMobile} unreadCount={inbox.unreadCount} onNavigate={() => {
         if (isMobile) setCollapsed(true);
       }} />
       {isMobile && !collapsed && (
@@ -70,7 +73,12 @@ const AdminLayout = () => {
         />
       )}
       <Layout className="admin-main-shell">
-        <Header collapsed={collapsed} setCollapsed={setCollapsed} isMobile={isMobile} />
+        <Header
+          collapsed={collapsed}
+          setCollapsed={setCollapsed}
+          isMobile={isMobile}
+          unreadCount={inbox.unreadCount}
+        />
         <Content
           className="admin-content"
           style={{
@@ -78,7 +86,7 @@ const AdminLayout = () => {
             transition: 'all 0.2s ease-in-out',
           }}
         >
-          <Outlet />
+          <Outlet context={inbox} />
         </Content>
       </Layout>
     </Layout>
@@ -109,6 +117,7 @@ function App() {
           <Route path="services" element={<ServicesPage />} />
           <Route path="faqs" element={<FaqsPage />} />
           <Route path="blogs" element={<Blogs />} />
+          <Route path="admin/inbox" element={<Inbox />} />
         </Route>
       </Route>
 

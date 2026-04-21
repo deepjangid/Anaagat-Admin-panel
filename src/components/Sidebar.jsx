@@ -1,5 +1,6 @@
 import { Layout, Menu } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Inbox } from 'lucide-react';
 import {
   MdDashboard,
   MdViewCarousel,
@@ -19,7 +20,9 @@ import logo from '../assets/logo.png';
 
 const { Sider } = Layout;
 
-const Sidebar = ({ collapsed, isMobile = false, onNavigate }) => {
+const formatBadgeCount = (count) => (count > 99 ? '99+' : count);
+
+const Sidebar = ({ collapsed, isMobile = false, onNavigate, unreadCount = 0 }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -94,6 +97,29 @@ const Sidebar = ({ collapsed, isMobile = false, onNavigate }) => {
       key: '/blogs',
       icon: <MdArticle size={20} />,
       label: 'Blogs',
+    },
+    {
+      key: '/admin/inbox',
+      icon: (
+        <div className="relative">
+          <Inbox size={20} />
+          {unreadCount > 0 ? (
+            <span className="absolute -right-2 -top-2 inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white shadow-sm">
+              {formatBadgeCount(unreadCount)}
+            </span>
+          ) : null}
+        </div>
+      ),
+      label: (
+        <span className="flex items-center justify-between gap-2">
+          <span>Inbox</span>
+          {unreadCount > 0 ? (
+            <span className="rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-semibold leading-none text-white">
+              {formatBadgeCount(unreadCount)}
+            </span>
+          ) : null}
+        </span>
+      ),
     },
   ];
 

@@ -1,12 +1,15 @@
 import { Layout, Button, Avatar, Dropdown, Space, Typography } from 'antd';
 import { MdMenu } from 'react-icons/md';
+import { Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
 
 const { Header: AntHeader } = Layout;
 const { Text } = Typography;
 
-const Header = ({ collapsed, setCollapsed, isMobile = false }) => {
+const formatBadgeCount = (count) => (count > 99 ? '99+' : count);
+
+const Header = ({ collapsed, setCollapsed, isMobile = false, unreadCount = 0 }) => {
   const navigate = useNavigate();
   const userMenuItems = [
     {
@@ -46,6 +49,19 @@ const Header = ({ collapsed, setCollapsed, isMobile = false }) => {
         </div>
       </div>
       <div className="header-right">
+        <button
+          type="button"
+          onClick={() => navigate('/admin/inbox')}
+          className="relative flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition-all duration-200 hover:scale-[1.01] hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
+          aria-label="Open inbox notifications"
+        >
+          <Bell size={18} />
+          {unreadCount > 0 ? (
+            <span className="absolute -right-1 -top-1 inline-flex min-w-5 animate-bounce items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white shadow-sm">
+              {formatBadgeCount(unreadCount)}
+            </span>
+          ) : null}
+        </button>
         <Dropdown menu={{ items: userMenuItems, onClick: handleUserMenuClick }} placement="bottomRight">
           <Space className="admin-header-profile" size={12}>
             <div className="admin-header-profile-copy">

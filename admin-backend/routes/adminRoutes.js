@@ -10,6 +10,7 @@ import {
   deleteContactMessage,
   getCandidateProfiles,
   getClientProfiles,
+  getContactInboxMessages,
   getContactMessages,
   markContactMessageRead,
   updateContactMessage,
@@ -34,6 +35,7 @@ router.put("/client-profiles/:id", requireAuth, requireAdmin, updateClientProfil
 router.delete("/client-profiles/:id", requireAuth, requireAdmin, deleteClientProfile);
 
 router.get("/contact-messages", requireAuth, requireAdmin, getContactMessages);
+router.get("/contact-inbox", requireAuth, requireAdmin, getContactInboxMessages);
 router.post("/contact-messages", requireAuth, requireAdmin, createContactMessage);
 router.put("/contact-messages/:id", requireAuth, requireAdmin, updateContactMessage);
 router.patch("/contact-messages/:id/read", requireAuth, requireAdmin, markContactMessageRead);

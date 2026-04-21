@@ -34,8 +34,10 @@ const API_BASE_URL = (() => {
   return '';
 })();
 
+export const API_URL = `${API_BASE_URL}/api`;
+
 const api = axios.create({
-  baseURL: `${API_BASE_URL}/api`,
+  baseURL: API_URL,
   timeout: 15000,
   // Default false (this app uses Authorization header tokens). Enable only if you use cookies/sessions.
   withCredentials: String(import.meta.env.VITE_WITH_CREDENTIALS || '').trim() === 'true',
@@ -205,6 +207,7 @@ export const adminAPI = {
   deleteClientProfile: (id, config = {}) => api.delete(`/admin/client-profiles/${id}`, config),
 
   getContactMessages: (params, config = {}) => api.get('/admin/contact-messages', { params, ...config }),
+  getContactInboxMessages: (params, config = {}) => api.get('/admin/contact-inbox', { params, ...config }),
   createContactMessage: (data, config = {}) => api.post('/admin/contact-messages', data, config),
   updateContactMessage: (id, data, config = {}) => api.put(`/admin/contact-messages/${id}`, data, config),
   markContactMessageRead: (id, config = {}) => api.patch(`/admin/contact-messages/${id}/read`, {}, config),

@@ -293,6 +293,42 @@ export const getContactMessages = async (req, res) => {
   }
 };
 
+export const getContactInboxMessages = async (req, res) => {
+  try {
+    const search = normalizeText(req.query.search).toLowerCase();
+
+    let items = await ContactMessage.find({})
+      .sort({ createdAt: -1, _id: -1 })
+      .lean();
+
+    if (search) {
+      items = items.filter((item) =>
+        [
+          item.name,
+          item.email,
+          item.message,
+          item.subject,
+        ].some((value) => normalizeText(value).toLowerCase().includes(search))
+      );
+    }
+
+    const normalizedItems = items.map((item) => ({
+      ...item,
+      status: item?.isRead ? "read" : "unread",
+    }));
+
+    res.json({
+      success: true,
+      items: normalizedItems,
+      total: normalizedItems.length,
+      unreadCount: normalizedItems.filter((item) => item.status === "unread").length,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Failed to fetch contact inbox" });
+  }
+};
+
 export const deleteContactMessage = (req, res) =>
   deleteResource(req, res, ContactMessage);
 
