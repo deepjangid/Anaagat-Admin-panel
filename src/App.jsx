@@ -14,6 +14,7 @@ import CandidateResponsePage from './pages/CandidateResponsePage';
 import BannerPage from './pages/BannerPage';
 import AboutUsPage from './pages/AboutUsPage';
 import ServicesPage from './pages/ServicesPage';
+import TeamManagementPage from './pages/TeamManagementPage';
 import FaqsPage from './pages/FaqsPage';
 import CandidateProfilesPage from './pages/CandidateProfilesView';
 import ClientProfilesPage from './pages/ClientProfilesView';
@@ -115,6 +116,7 @@ function App() {
           <Route path="banner" element={<BannerPage />} />
           <Route path="about-us" element={<AboutUsPage />} />
           <Route path="services" element={<ServicesPage />} />
+          <Route path="team-management" element={<TeamManagementPage />} />
           <Route path="faqs" element={<FaqsPage />} />
           <Route path="blogs" element={<Blogs />} />
           <Route path="admin/inbox" element={<Inbox />} />

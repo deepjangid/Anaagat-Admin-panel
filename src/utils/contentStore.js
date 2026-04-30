@@ -71,6 +71,53 @@ export const contentDefaults = {
       status: 'Active',
     },
   ],
+  teamMembers: [
+    {
+      id: 'team-1',
+      fullName: 'Riya Sharma',
+      role: 'Talent Acquisition Lead',
+      shortDescription:
+        'Builds high-quality hiring pipelines and keeps client coordination moving with clarity and speed.',
+      profileImage:
+        'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=600&q=80',
+      linkedInUrl: 'https://www.linkedin.com/in/riya-sharma',
+      email: 'riya@anaagat.com',
+      contactLink: 'mailto:riya@anaagat.com',
+      cardStyleVariant: 'featured',
+      displayOrder: 1,
+      active: true,
+    },
+    {
+      id: 'team-2',
+      fullName: 'Arjun Mehta',
+      role: 'Client Success Manager',
+      shortDescription:
+        'Partners with clients on hiring priorities, role briefs, and feedback loops throughout the process.',
+      profileImage:
+        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80',
+      linkedInUrl: 'https://www.linkedin.com/in/arjun-mehta',
+      email: 'arjun@anaagat.com',
+      contactLink: 'mailto:arjun@anaagat.com',
+      cardStyleVariant: 'light',
+      displayOrder: 2,
+      active: true,
+    },
+    {
+      id: 'team-3',
+      fullName: 'Neha Verma',
+      role: 'Candidate Experience Specialist',
+      shortDescription:
+        'Supports follow-ups, scheduling, and communication so candidates stay informed at every stage.',
+      profileImage:
+        'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=600&q=80',
+      linkedInUrl: 'https://www.linkedin.com/in/neha-verma',
+      email: 'neha@anaagat.com',
+      contactLink: '',
+      cardStyleVariant: 'light',
+      displayOrder: 3,
+      active: false,
+    },
+  ],
   faqs: [
     {
       id: 'faq-1',

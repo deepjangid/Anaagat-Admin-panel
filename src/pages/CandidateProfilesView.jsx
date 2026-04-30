@@ -285,13 +285,13 @@ const CandidateProfilesView = () => {
   }, [editingRecord, fetchItems, filters, handleCloseEditor, pagination]);
 
   const stats = useMemo(() => ({
-    total: items.length,
+    total: pagination.total,
     active: items.filter((item) => item?.isActive !== false).length,
     withResume: items.filter((item) => item?.resumePath).length,
     withPreferences: items.filter((item) =>
       [getPreferredLocation(item), getPreferredIndustry(item), getPreferredRole(item), getWorkModes(item)].some((value) => value !== EMPTY)
     ).length,
-  }), [items]);
+  }), [items, pagination.total]);
 
   const columns = useMemo(
     () => [

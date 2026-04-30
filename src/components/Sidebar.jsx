@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Inbox } from 'lucide-react';
 import {
   MdDashboard,
+  MdGroups,
   MdViewCarousel,
   MdInfoOutline,
   MdMiscellaneousServices,
@@ -87,6 +88,11 @@ const Sidebar = ({ collapsed, isMobile = false, onNavigate, unreadCount = 0 }) =
       key: '/services',
       icon: <MdMiscellaneousServices size={20} />,
       label: 'Services',
+    },
+    {
+      key: '/team-management',
+      icon: <MdGroups size={20} />,
+      label: 'Team Management',
     },
     {
       key: '/faqs',

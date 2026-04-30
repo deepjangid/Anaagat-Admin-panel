@@ -8,14 +8,18 @@ import {
   deleteCandidateProfile,
   deleteClientProfile,
   deleteContactMessage,
+  deleteTeamMember,
   getCandidateProfiles,
   getClientProfiles,
   getContactInboxMessages,
   getContactMessages,
+  getTeamMembers,
   markContactMessageRead,
   updateContactMessage,
   updateCandidateProfile,
   updateClientProfile,
+  updateTeamMember,
+  createTeamMember,
 } from "../controllers/adminResourcesController.js";
 
 const router = express.Router();
@@ -40,5 +44,10 @@ router.post("/contact-messages", requireAuth, requireAdmin, createContactMessage
 router.put("/contact-messages/:id", requireAuth, requireAdmin, updateContactMessage);
 router.patch("/contact-messages/:id/read", requireAuth, requireAdmin, markContactMessageRead);
 router.delete("/contact-messages/:id", requireAuth, requireAdmin, deleteContactMessage);
+
+router.get("/team-members", requireAuth, requireAdmin, getTeamMembers);
+router.post("/team-members", requireAuth, requireAdmin, createTeamMember);
+router.put("/team-members/:id", requireAuth, requireAdmin, updateTeamMember);
+router.delete("/team-members/:id", requireAuth, requireAdmin, deleteTeamMember);
 
 export default router;

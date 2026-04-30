@@ -466,6 +466,15 @@ a {
   line-height: 1.6;
 }
 
+.team-management-page .ant-card-head {
+  border-bottom-color: rgba(226, 232, 240, 0.88);
+}
+
+.team-management-page .ant-card-head-title {
+  color: #0f172a;
+  font-weight: 700;
+}
+
 .candidate-response-page {
   --response-accent-a: rgba(15, 118, 110, 0.08);
   --response-accent-b: rgba(245, 158, 11, 0.08);

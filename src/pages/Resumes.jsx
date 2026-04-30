@@ -76,11 +76,11 @@ const Resumes = () => {
   }, []);
 
   const stats = useMemo(() => ({
-    total: items.length,
+    total: pagination.total,
     uploaded: items.filter((item) => item?.hasCustomResume).length,
     linked: items.filter((item) => !item?.hasCustomResume && item?.resumePath).length,
     created: items.filter((item) => !item?.hasCustomResume && !item?.resumePath && item?.resumeData).length,
-  }), [items]);
+  }), [items, pagination.total]);
 
   const columns = useMemo(() => [
     {
@@ -172,7 +172,7 @@ const Resumes = () => {
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={12} sm={12} lg={6}>
           <Card className="admin-surface-card" size="small">
-            <Statistic title="Latest Resumes" value={stats.total} />
+            <Statistic title="Total Resumes" value={stats.total} />
           </Card>
         </Col>
         <Col xs={12} sm={12} lg={6}>

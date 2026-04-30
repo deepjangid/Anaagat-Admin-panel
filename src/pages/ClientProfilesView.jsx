@@ -154,11 +154,11 @@ const ClientProfilesView = () => {
   }, [editingRecord, fetchItems, filters, handleCloseEditor, pagination]);
 
   const stats = useMemo(() => ({
-    total: items.length,
+    total: pagination.total,
     withEmail: items.filter((item) => item?.email).length,
     withPhone: items.filter((item) => item?.phone || item?.mobile).length,
     withWebsite: items.filter((item) => item?.website).length,
-  }), [items]);
+  }), [items, pagination.total]);
 
   const columns = useMemo(
     () => [

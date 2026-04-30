@@ -3,6 +3,7 @@ import User from "../models/user.js";
 import CandidateProfile from "../models/CandidateProfile.js";
 import ClientProfile from "../models/ClientProfile.js";
 import ContactMessage from "../models/ContactMessage.js";
+import TeamMember from "../models/TeamMember.js";
 
 const parsePagination = (req, defaultLimit = 20) => {
   const limit = Math.min(
@@ -358,4 +359,25 @@ export const markContactMessageRead = async (req, res) => {
     });
   }
 };
+
+export const getTeamMembers = (req, res) =>
+  listResource(req, res, TeamMember, [
+    "fullName",
+    "name",
+    "role",
+    "position",
+    "email",
+    "linkedInUrl",
+    "contactLink",
+    "shortDescription",
+  ]);
+
+export const createTeamMember = (req, res) =>
+  createResource(req, res, TeamMember, "Team member created");
+
+export const updateTeamMember = (req, res) =>
+  updateResource(req, res, TeamMember, "Team member updated");
+
+export const deleteTeamMember = (req, res) =>
+  deleteResource(req, res, TeamMember);
 

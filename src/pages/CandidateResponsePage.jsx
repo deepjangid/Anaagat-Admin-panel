@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Button, Card, Drawer, Empty, Input, Select, Space, Tag, Typography, message } from 'antd';
-import { MdDownload, MdEdit, MdEmail, MdLocationOn, MdMap, MdPerson, MdPhone, MdRefresh, MdSchedule, MdTune } from 'react-icons/md';
+import { Alert, Button, Card, Drawer, Empty, Input, Pagination, Select, Space, Tag, Typography, message } from 'antd';
+import { MdDownload, MdEdit, MdEmail, MdLocationOn, MdMap, MdPerson, MdPhone, MdRefresh, MdSchedule } from 'react-icons/md';
 import { applicationsAPI } from '../services/api';
 import {
   getApplicationClientName,
@@ -12,15 +12,18 @@ import {
   hasApplicationResume,
 } from '../utils/adminRecords';
 
+const { Search, TextArea } = Input;
 const { Text, Paragraph } = Typography;
-const { TextArea } = Input;
 
 const STATUS_OPTIONS = [
+  { value: '', label: 'All statuses' },
   { value: 'pending', label: 'Pending' },
   { value: 'shortlisted', label: 'Shortlisted' },
   { value: 'accepted', label: 'Accepted' },
   { value: 'rejected', label: 'Rejected' },
 ];
+
+const EDIT_STATUS_OPTIONS = STATUS_OPTIONS.filter((item) => item.value);
 
 const STATUS_COLORS = {
   pending: 'gold',
@@ -45,6 +48,12 @@ const DEFAULT_UI = {
   tone: 'teal',
 };
 
+const DEFAULT_PAGINATION = {
+  current: 1,
+  pageSize: 12,
+  total: 0,
+};
+
 const getEmptyDetails = () => ({
   interviewMode: '',
   interviewDate: '',
@@ -59,53 +68,77 @@ const getEmptyDetails = () => ({
   additionalInstructions: '',
 });
 
+const getDraftFromRecord = (record) => ({
+  status: record.status || 'pending',
+  adminMessage: record.adminMessage || '',
+  candidateResponseDetails: {
+    ...getEmptyDetails(),
+    ...(record.candidateResponseDetails || {}),
+  },
+});
+
 const CandidateResponsePage = () => {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState('');
   const [drafts, setDrafts] = useState({});
   const [selectedApplication, setSelectedApplication] = useState(null);
-  const [uiDrawerOpen, setUiDrawerOpen] = useState(false);
   const [uiSettings, setUiSettings] = useState(DEFAULT_UI);
+  const [pagination, setPagination] = useState(DEFAULT_PAGINATION);
+  const [filters, setFilters] = useState({ status: '', search: '' });
 
   const syncDrafts = useCallback((records) => {
     setDrafts((prev) => {
       const next = { ...prev };
       for (const record of records) {
         const id = String(record._id);
-        next[id] = next[id] || {
-          status: record.status || 'pending',
-          adminMessage: record.adminMessage || '',
-          candidateResponseDetails: {
-            ...getEmptyDetails(),
-            ...(record.candidateResponseDetails || {}),
-          },
-        };
+        if (!next[id]) next[id] = getDraftFromRecord(record);
       }
       return next;
     });
   }, []);
 
-  const fetchApplications = useCallback(async () => {
+  const fetchApplications = useCallback(async (
+    page = pagination.current,
+    pageSize = pagination.pageSize,
+    currentFilters = filters,
+    signal
+  ) => {
     setLoading(true);
     try {
-      const res = await applicationsAPI.getAll({ limit: 100 });
+      const params = {
+        page,
+        limit: pageSize,
+      };
+
+      if (currentFilters.status) params.status = currentFilters.status;
+      if (currentFilters.search) params.search = currentFilters.search;
+
+      const res = await applicationsAPI.getAll(params, { signal });
       if (res.data.success) {
         const rows = Array.isArray(res.data.applications) ? res.data.applications : [];
         setApplications(rows);
+        setPagination({
+          current: res.data.currentPage || page,
+          pageSize,
+          total: res.data.total || 0,
+        });
         syncDrafts(rows);
       }
     } catch (error) {
+      if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') return;
       console.error(error);
       message.error(error?.response?.data?.message || 'Failed to load candidate responses');
     } finally {
       setLoading(false);
     }
-  }, [syncDrafts]);
+  }, [filters, pagination.current, pagination.pageSize, syncDrafts]);
 
   useEffect(() => {
-    fetchApplications();
-  }, [fetchApplications]);
+    const controller = new AbortController();
+    fetchApplications(pagination.current, pagination.pageSize, filters, controller.signal);
+    return () => controller.abort();
+  }, [fetchApplications, filters, pagination.current, pagination.pageSize]);
 
   useEffect(() => {
     try {
@@ -130,9 +163,7 @@ const CandidateResponsePage = () => {
     setDrafts((prev) => ({
       ...prev,
       [id]: {
-        status: prev[id]?.status || 'pending',
-        adminMessage: prev[id]?.adminMessage || '',
-        candidateResponseDetails: prev[id]?.candidateResponseDetails || getEmptyDetails(),
+        ...(prev[id] || getDraftFromRecord({})),
         ...patch,
       },
     }));
@@ -142,8 +173,7 @@ const CandidateResponsePage = () => {
     setDrafts((prev) => ({
       ...prev,
       [id]: {
-        status: prev[id]?.status || 'pending',
-        adminMessage: prev[id]?.adminMessage || '',
+        ...(prev[id] || getDraftFromRecord({})),
         candidateResponseDetails: {
           ...getEmptyDetails(),
           ...(prev[id]?.candidateResponseDetails || {}),
@@ -155,6 +185,10 @@ const CandidateResponsePage = () => {
 
   const openResponseForm = (record) => {
     setSelectedApplication(record);
+    setDrafts((prev) => ({
+      ...prev,
+      [String(record._id)]: prev[String(record._id)] || getDraftFromRecord(record),
+    }));
   };
 
   const closeResponseForm = () => {
@@ -171,14 +205,7 @@ const CandidateResponsePage = () => {
 
   const handleUpdate = async (record) => {
     const id = String(record._id);
-    const draft = drafts[id] || {
-      status: record.status || 'pending',
-      adminMessage: record.adminMessage || '',
-      candidateResponseDetails: {
-        ...getEmptyDetails(),
-        ...(record.candidateResponseDetails || {}),
-      },
-    };
+    const draft = drafts[id] || getDraftFromRecord(record);
 
     setSavingId(id);
     try {
@@ -191,14 +218,8 @@ const CandidateResponsePage = () => {
       if (res.data.success) {
         const updated = res.data.application;
         setApplications((prev) => prev.map((item) => (item._id === updated._id ? updated : item)));
-        updateDraft(id, {
-          status: updated.status || 'pending',
-          adminMessage: updated.adminMessage || '',
-          candidateResponseDetails: {
-            ...getEmptyDetails(),
-            ...(updated.candidateResponseDetails || {}),
-          },
-        });
+        setSelectedApplication((prev) => (prev?._id === updated._id ? updated : prev));
+        updateDraft(id, getDraftFromRecord(updated));
         message.success('Candidate response updated');
       }
     } catch (error) {
@@ -207,6 +228,24 @@ const CandidateResponsePage = () => {
     } finally {
       setSavingId('');
     }
+  };
+
+  const handleSearch = (value) => {
+    setPagination((prev) => ({ ...prev, current: 1 }));
+    setFilters((prev) => ({ ...prev, search: String(value || '').trim() }));
+  };
+
+  const handleStatusFilter = (value) => {
+    setPagination((prev) => ({ ...prev, current: 1 }));
+    setFilters((prev) => ({ ...prev, status: value || '' }));
+  };
+
+  const handlePageChange = (page, pageSize) => {
+    setPagination((prev) => ({
+      ...prev,
+      current: page,
+      pageSize,
+    }));
   };
 
   return (
@@ -219,22 +258,38 @@ const CandidateResponsePage = () => {
       </div>
 
       <Card className="admin-surface-card" style={{ marginBottom: 20 }}>
-        <div className="response-toolbar">
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           <Alert
             type="info"
             showIcon
-            message="Each card works like a conversation thread for one application."
-            description="Mark whether the application belongs to an admin job or client job, then send all important interview information the candidate needs."
+            message="Optimized for larger candidate lists"
+            description="This page now loads paginated application batches instead of rendering a large fixed list at once."
           />
-          <Space wrap>
-            <Button icon={<MdTune />} onClick={() => setUiDrawerOpen(true)}>
-              Customize UI
-            </Button>
-            <Button icon={<MdRefresh />} onClick={fetchApplications} loading={loading}>
-              Refresh
-            </Button>
-          </Space>
-        </div>
+
+          <div className="response-toolbar">
+            <Space wrap>
+              <Search
+                placeholder="Search candidate, email, phone, role, or application ID"
+                allowClear
+                onSearch={handleSearch}
+                style={{ width: 320 }}
+              />
+              <Select
+                value={filters.status}
+                style={{ width: 180 }}
+                options={STATUS_OPTIONS}
+                onChange={handleStatusFilter}
+              />
+              <Button
+                icon={<MdRefresh />}
+                onClick={() => fetchApplications(pagination.current, pagination.pageSize, filters)}
+                loading={loading}
+              >
+                Refresh
+              </Button>
+            </Space>
+          </div>
+        </Space>
       </Card>
 
       <div className="response-card-list">
@@ -247,7 +302,6 @@ const CandidateResponsePage = () => {
         {applications.map((record) => {
           const id = String(record._id);
           const candidateName = getApplicationName(record);
-          const initial = String(candidateName || '?').trim().charAt(0).toUpperCase() || '?';
 
           return (
             <Card
@@ -257,7 +311,7 @@ const CandidateResponsePage = () => {
               onClick={() => openResponseForm(record)}
             >
               <div className="response-chat-card">
-                <div className="response-chat-avatar">{initial}</div>
+                <div className="response-chat-avatar ma"></div>
 
                 <div className="response-chat-main">
                   <div className="response-chat-header">
@@ -269,12 +323,9 @@ const CandidateResponsePage = () => {
                     </div>
                   </div>
 
-                  <div className="response-chat-subhead">
+                  <div className="response-chat-subhead flex gap-2">
                     <span>{getApplicationJobTitle(record)}</span>
                     <span>{getApplicationClientName(record)}</span>
-                    <Tag color={getApplicationJobSourceLabel(record) === 'Admin Job' ? 'geekblue' : 'purple'}>
-                      {getApplicationJobSourceLabel(record)}
-                    </Tag>
                   </div>
 
                   <div className="response-thread-details">
@@ -289,7 +340,14 @@ const CandidateResponsePage = () => {
               </div>
 
               <Space wrap>
-                <Button icon={<MdEdit />} type="primary" onClick={() => openResponseForm(record)}>
+                <Button
+                  icon={<MdEdit />}
+                  type="primary"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openResponseForm(record);
+                  }}
+                >
                   Open Response Form
                 </Button>
                 <Button
@@ -308,6 +366,18 @@ const CandidateResponsePage = () => {
         })}
       </div>
 
+      <div style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end' }}>
+        <Pagination
+          current={pagination.current}
+          pageSize={pagination.pageSize}
+          total={pagination.total}
+          showSizeChanger
+          pageSizeOptions={['12', '24', '48', '96']}
+          showTotal={(total) => `Total ${total} candidates`}
+          onChange={handlePageChange}
+        />
+      </div>
+
       <Drawer
         title={selectedApplication ? `Candidate Response - ${getApplicationName(selectedApplication)}` : 'Candidate Response'}
         open={Boolean(selectedApplication)}
@@ -317,14 +387,7 @@ const CandidateResponsePage = () => {
       >
         {selectedApplication && (() => {
           const id = String(selectedApplication._id);
-          const draft = drafts[id] || {
-            status: selectedApplication.status || 'pending',
-            adminMessage: selectedApplication.adminMessage || '',
-            candidateResponseDetails: {
-              ...getEmptyDetails(),
-              ...(selectedApplication.candidateResponseDetails || {}),
-            },
-          };
+          const draft = drafts[id] || getDraftFromRecord(selectedApplication);
           const details = draft.candidateResponseDetails || getEmptyDetails();
 
           return (
@@ -355,7 +418,7 @@ const CandidateResponsePage = () => {
                   <Text strong>Status</Text>
                   <Select
                     value={draft.status}
-                    options={STATUS_OPTIONS}
+                    options={EDIT_STATUS_OPTIONS}
                     onChange={(value) => updateDraft(id, { status: value })}
                   />
                 </div>
@@ -415,7 +478,7 @@ const CandidateResponsePage = () => {
                   />
                 </div>
                 <div className="response-detail-card">
-                  <div className="response-detail-label"><MdPerson /> Contact Person</div>
+                  <div className="response-detail-label"><MdPerson /> Contact Person Name</div>
                   <Input
                     value={details.contactPerson}
                     onChange={(event) => updateDetailField(id, 'contactPerson', event.target.value)}
@@ -486,57 +549,6 @@ const CandidateResponsePage = () => {
             </div>
           );
         })()}
-      </Drawer>
-
-      <Drawer
-        title="Customize UI"
-        open={uiDrawerOpen}
-        onClose={() => setUiDrawerOpen(false)}
-        width={360}
-      >
-        <div className="response-thread-panel response-ui-panel">
-          <div className="response-thread-field">
-            <Text strong>Card Layout</Text>
-            <Select
-              value={uiSettings.layout}
-              options={[
-                { value: 'centered', label: 'Centered' },
-                { value: 'wide', label: 'Wide' },
-                { value: 'full', label: 'Full Width' },
-              ]}
-              onChange={(value) => updateUiSetting('layout', value)}
-            />
-          </div>
-
-          <div className="response-thread-field">
-            <Text strong>Spacing</Text>
-            <Select
-              value={uiSettings.spacing}
-              options={[
-                { value: 'compact', label: 'Compact' },
-                { value: 'comfortable', label: 'Comfortable' },
-              ]}
-              onChange={(value) => updateUiSetting('spacing', value)}
-            />
-          </div>
-
-          <div className="response-thread-field">
-            <Text strong>Color Tone</Text>
-            <Select
-              value={uiSettings.tone}
-              options={[
-                { value: 'teal', label: 'Teal' },
-                { value: 'sand', label: 'Sand' },
-                { value: 'slate', label: 'Slate' },
-              ]}
-              onChange={(value) => updateUiSetting('tone', value)}
-            />
-          </div>
-
-          <Button onClick={resetUiSettings}>
-            Reset Default
-          </Button>
-        </div>
       </Drawer>
     </div>
   );

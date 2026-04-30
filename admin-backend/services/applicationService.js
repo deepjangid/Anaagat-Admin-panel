@@ -11,6 +11,11 @@ const APPLICATION_POPULATION = [
   { path: "openingId", select: "title jobTitle company" },
 ];
 
+const APPLICATION_LIST_EXCLUDED_FIELDS = [
+  "resumeData",
+  "timeline",
+].map((field) => `-${field}`).join(" ");
+
 const buildPopulateQuery = (query) => {
   let next = query;
   for (const config of APPLICATION_POPULATION) {
@@ -104,6 +109,7 @@ export const findApplicationList = async ({ query = {}, page = 1, limit = 10 } =
     Application.countDocuments(query),
     buildPopulateQuery(
       Application.find(query)
+        .select(APPLICATION_LIST_EXCLUDED_FIELDS)
         .sort({ updatedAt: -1, submittedAt: -1, createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -153,7 +159,9 @@ export const findUniqueResumeList = async ({ query = {}, page = 1, limit = 10 } 
   const ids = groupedApplications.map((item) => item.applicationId).filter(Boolean);
   const applications = ids.length === 0
     ? []
-    : await buildPopulateQuery(Application.find({ _id: { $in: ids } })).lean();
+    : await buildPopulateQuery(
+        Application.find({ _id: { $in: ids } }).select(APPLICATION_LIST_EXCLUDED_FIELDS)
+      ).lean();
 
   const order = new Map(ids.map((id, index) => [String(id), index]));
   applications.sort((left, right) => (order.get(String(left._id)) ?? 0) - (order.get(String(right._id)) ?? 0));

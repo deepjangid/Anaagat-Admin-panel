@@ -212,6 +212,11 @@ export const adminAPI = {
   updateContactMessage: (id, data, config = {}) => api.put(`/admin/contact-messages/${id}`, data, config),
   markContactMessageRead: (id, config = {}) => api.patch(`/admin/contact-messages/${id}/read`, {}, config),
   deleteContactMessage: (id, config = {}) => api.delete(`/admin/contact-messages/${id}`, config),
+
+  getTeamMembers: (params, config = {}) => api.get('/admin/team-members', { params, ...config }),
+  createTeamMember: (data, config = {}) => api.post('/admin/team-members', data, config),
+  updateTeamMember: (id, data, config = {}) => api.put(`/admin/team-members/${id}`, data, config),
+  deleteTeamMember: (id, config = {}) => api.delete(`/admin/team-members/${id}`, config),
 };
 
 export default api;

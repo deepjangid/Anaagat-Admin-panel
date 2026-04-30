@@ -48,11 +48,11 @@ const ContactMessagesView = () => {
   }, [fetchItems, filters, pagination.pageSize]);
 
   const stats = useMemo(() => ({
-    total: items.length,
+    total: pagination.total,
     withEmail: items.filter((item) => item?.email).length,
     withPhone: items.filter((item) => item?.phone).length,
     companies: items.filter((item) => item?.companyName).length,
-  }), [items]);
+  }), [items, pagination.total]);
 
   const columns = useMemo(
     () => [
