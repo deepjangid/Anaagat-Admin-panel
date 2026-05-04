@@ -12,6 +12,7 @@ const defaultMember = {
   role: '',
   shortDescription: '',
   profileImage: '',
+  profileImageAsset: null,
   linkedInUrl: '',
   email: '',
   cardStyleVariant: 'light',
@@ -25,6 +26,7 @@ const buildTeamPayload = (values) => ({
   position: String(values.role || '').trim(),
   shortDescription: String(values.shortDescription || '').trim(),
   profileImage: String(values.profileImage || '').trim(),
+  ...(values.profileImageAsset !== undefined ? { profileImageAsset: values.profileImageAsset } : {}),
   linkedInUrl: String(values.linkedInUrl || '').trim(),
   email: String(values.email || '').trim().toLowerCase(),
   cardStyleVariant: values.cardStyleVariant === 'featured' ? 'featured' : 'light',
@@ -129,7 +131,7 @@ const TeamManagementPage = () => {
     return (async () => {
       setSaving(true);
       try {
-        const payload = buildTeamPayload(values);
+        const payload = buildTeamPayload({ ...draftMember, ...values });
 
         if (editingId) {
           await adminAPI.updateTeamMember(editingId, payload);

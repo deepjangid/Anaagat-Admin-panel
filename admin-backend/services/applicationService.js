@@ -12,7 +12,6 @@ const APPLICATION_POPULATION = [
 ];
 
 const APPLICATION_LIST_EXCLUDED_FIELDS = [
-  "resumeData",
   "timeline",
 ].map((field) => `-${field}`).join(" ");
 

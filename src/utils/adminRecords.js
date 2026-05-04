@@ -150,4 +150,4 @@ export const getApplicationExperienceSummary = (record) => {
 };
 
 export const hasApplicationResume = (record) =>
-  Boolean(record?.resumeData || record?.resumePath || record?.hasCustomResume);
+  Boolean(record?.resumeData || record?.resume?.url || record?.resumePath || record?.hasCustomResume);

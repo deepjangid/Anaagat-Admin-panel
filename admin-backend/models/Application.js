@@ -27,7 +27,13 @@ const applicationSchema = new mongoose.Schema(
     experience: { type: Array, default: [] },
 
     resumePath: { type: String },
-    resumeData: { type: mongoose.Schema.Types.Mixed },
+    resume: {
+      url: { type: String, default: "", trim: true },
+      fileId: { type: String, default: "", trim: true },
+      name: { type: String, default: "", trim: true },
+      size: { type: Number, default: 0 },
+      type: { type: String, default: "", trim: true },
+    },
     hasCustomResume: { type: Boolean, default: false },
 
     status: {

@@ -4,6 +4,11 @@ import CandidateProfile from "../models/CandidateProfile.js";
 import ClientProfile from "../models/ClientProfile.js";
 import ContactMessage from "../models/ContactMessage.js";
 import TeamMember from "../models/TeamMember.js";
+import {
+  collectRemovedFileIds,
+  deleteImageKitFiles,
+  normalizeFileAsset,
+} from "../utils/mediaAssets.js";
 
 const parsePagination = (req, defaultLimit = 20) => {
   const limit = Math.min(
@@ -91,6 +96,97 @@ const sanitizePayload = (payload = {}) => {
   );
 };
 
+const normalizeAssetField = (payload, fieldName, legacyUrlField = fieldName) => {
+  const next = { ...payload };
+  const asset = normalizeFileAsset(next[fieldName], { required: false });
+
+  if (asset) {
+    next[fieldName] = asset;
+    next[legacyUrlField] = asset.url;
+    return next;
+  }
+
+  if (next[fieldName] !== undefined || next[legacyUrlField] === "") {
+    next[fieldName] = null;
+    if (legacyUrlField) next[legacyUrlField] = "";
+  }
+
+  return next;
+};
+
+const createResourceWithFiles = async (req, res, Model, { successMessage = "Created", fileFields = [] } = {}) => {
+  try {
+    let payload = sanitizePayload(req.body);
+    for (const fileField of fileFields) {
+      payload = normalizeAssetField(payload, fileField.fieldName, fileField.legacyUrlField);
+    }
+
+    const item = await Model.create(payload);
+    res.status(201).json({ success: true, message: successMessage, item });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Failed to create record" });
+  }
+};
+
+const updateResourceWithFiles = async (req, res, Model, { successMessage = "Updated", fileFields = [] } = {}) => {
+  try {
+    if (!isValidMongoId(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Invalid record id" });
+    }
+
+    const existing = await Model.findById(req.params.id).lean();
+    if (!existing) return res.status(404).json({ success: false, message: "Not found" });
+
+    let payload = sanitizePayload(req.body);
+    const filesToDelete = [];
+
+    for (const fileField of fileFields) {
+      payload = normalizeAssetField(payload, fileField.fieldName, fileField.legacyUrlField);
+      if (payload[fileField.fieldName] === undefined) continue;
+
+      const previousAsset = normalizeFileAsset(existing[fileField.fieldName], { required: false });
+      const nextAsset = normalizeFileAsset(payload[fileField.fieldName], { required: false });
+      filesToDelete.push(...collectRemovedFileIds(previousAsset ? [previousAsset] : [], nextAsset ? [nextAsset] : []));
+    }
+
+    const item = await Model.findByIdAndUpdate(req.params.id, payload, {
+      returnDocument: "after",
+    }).lean();
+
+    await deleteImageKitFiles(filesToDelete);
+    res.json({ success: true, message: successMessage, item });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to update record",
+    });
+  }
+};
+
+const deleteResourceWithFiles = async (req, res, Model, fileFields = []) => {
+  try {
+    if (!isValidMongoId(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Invalid record id" });
+    }
+    const deleted = await Model.findByIdAndDelete(req.params.id).lean();
+    if (!deleted) return res.status(404).json({ success: false, message: "Not found" });
+
+    const fileIds = fileFields
+      .map((fileField) => normalizeFileAsset(deleted[fileField.fieldName], { required: false })?.fileId)
+      .filter(Boolean);
+    await deleteImageKitFiles(fileIds);
+    res.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to delete record",
+    });
+  }
+};
+
 const createResource = async (req, res, Model, successMessage = "Created") => {
   try {
     const item = await Model.create(sanitizePayload(req.body));
@@ -134,13 +230,19 @@ export const getCandidateProfiles = (req, res) =>
   ]);
 
 export const deleteCandidateProfile = (req, res) =>
-  deleteResource(req, res, CandidateProfile);
+  deleteResourceWithFiles(req, res, CandidateProfile, [{ fieldName: "resume" }]);
 
 export const createCandidateProfile = (req, res) =>
-  createResource(req, res, CandidateProfile, "Candidate profile created");
+  createResourceWithFiles(req, res, CandidateProfile, {
+    successMessage: "Candidate profile created",
+    fileFields: [{ fieldName: "resume", legacyUrlField: "resumePath" }],
+  });
 
 export const updateCandidateProfile = (req, res) =>
-  updateResource(req, res, CandidateProfile, "Candidate profile updated");
+  updateResourceWithFiles(req, res, CandidateProfile, {
+    successMessage: "Candidate profile updated",
+    fileFields: [{ fieldName: "resume", legacyUrlField: "resumePath" }],
+  });
 
 export const getClientProfiles = (req, res) =>
   listResource(req, res, ClientProfile, [
@@ -373,11 +475,17 @@ export const getTeamMembers = (req, res) =>
   ]);
 
 export const createTeamMember = (req, res) =>
-  createResource(req, res, TeamMember, "Team member created");
+  createResourceWithFiles(req, res, TeamMember, {
+    successMessage: "Team member created",
+    fileFields: [{ fieldName: "profileImageAsset", legacyUrlField: "profileImage" }],
+  });
 
 export const updateTeamMember = (req, res) =>
-  updateResource(req, res, TeamMember, "Team member updated");
+  updateResourceWithFiles(req, res, TeamMember, {
+    successMessage: "Team member updated",
+    fileFields: [{ fieldName: "profileImageAsset", legacyUrlField: "profileImage" }],
+  });
 
 export const deleteTeamMember = (req, res) =>
-  deleteResource(req, res, TeamMember);
+  deleteResourceWithFiles(req, res, TeamMember, [{ fieldName: "profileImageAsset" }]);
 

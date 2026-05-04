@@ -13,9 +13,11 @@ const blogPostSchema = new mongoose.Schema(
       default: null,
     },
     coverImage: {
-      type: String,
-      default: "",
-      trim: true,
+      url: { type: String, default: "", trim: true },
+      fileId: { type: String, default: "", trim: true },
+      name: { type: String, default: "", trim: true },
+      size: { type: Number, default: 0 },
+      type: { type: String, default: "", trim: true },
     },
     category: {
       type: String,
@@ -48,6 +50,37 @@ const blogPostSchema = new mongoose.Schema(
     content: {
       type: String,
       default: "",
+    },
+    contentImages: {
+      type: [
+        {
+          url: {
+            type: String,
+            required: true,
+            trim: true,
+          },
+          fileId: {
+            type: String,
+            required: true,
+            trim: true,
+          },
+          name: {
+            type: String,
+            default: "",
+            trim: true,
+          },
+          size: {
+            type: Number,
+            default: 0,
+          },
+          type: {
+            type: String,
+            default: "",
+            trim: true,
+          },
+        },
+      ],
+      default: [],
     },
     tags: {
       type: [String],

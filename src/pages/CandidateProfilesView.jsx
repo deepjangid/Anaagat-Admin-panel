@@ -19,7 +19,7 @@ import {
   message,
 } from 'antd';
 import { MdAdd, MdDelete, MdDescription, MdEdit, MdPerson, MdRefresh, MdVisibility } from 'react-icons/md';
-import { adminAPI, applicationsAPI } from '../services/api';
+import { adminAPI, applicationsAPI, uploadFile } from '../services/api';
 import { getUserCity, getUserEmail, getUserName, getUserPhone } from '../utils/adminRecords';
 import { buildRecordDetails } from '../utils/recordDetails';
 
@@ -90,7 +90,7 @@ const getWorkModes = (record) => {
   return formatValue(value);
 };
 
-const buildCandidatePayload = (values) => {
+const buildCandidatePayload = (values, resumeAsset = null) => {
   const workModes = Array.isArray(values.workModes)
     ? values.workModes.map((item) => String(item).trim()).filter(Boolean)
     : [];
@@ -110,7 +110,8 @@ const buildCandidatePayload = (values) => {
     workModes,
     summary: String(values.summary || '').trim(),
     about: String(values.summary || '').trim(),
-    resumePath: String(values.resumePath || '').trim(),
+    ...(resumeAsset !== null ? { resume: resumeAsset } : {}),
+    resumePath: String(resumeAsset?.url || values.resumePath || '').trim(),
     preferences: {
       preferredLocation: String(values.preferredLocation || '').trim(),
       preferredIndustry: String(values.preferredIndustry || '').trim(),
@@ -130,6 +131,7 @@ const CandidateProfilesView = () => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
+  const [resumeAsset, setResumeAsset] = useState(null);
   const [filters, setFilters] = useState({ search: '' });
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });
   const [form] = Form.useForm();
@@ -245,12 +247,14 @@ const CandidateProfilesView = () => {
         preferredRole: record?.preferredRole || record?.desiredRole || getPreferenceValue(record)?.preferredRole || '',
         workModes: record?.workModes || getPreferenceValue(record)?.workModes || [],
         summary: record?.summary || record?.about || '',
-        resumePath: record?.resumePath || '',
+        resumePath: record?.resume?.url || record?.resumePath || '',
         isActive: record?.isActive !== false,
       });
+      setResumeAsset(record?.resume || null);
     } else {
       form.resetFields();
       form.setFieldsValue({ isActive: true, workModes: [] });
+      setResumeAsset(null);
     }
     setEditorOpen(true);
   }, [form]);
@@ -258,13 +262,42 @@ const CandidateProfilesView = () => {
   const handleCloseEditor = useCallback(() => {
     setEditorOpen(false);
     setEditingRecord(null);
+    setResumeAsset(null);
     form.resetFields();
+  }, [form]);
+
+  const handleResumeUpload = useCallback(async (event) => {
+    const file = event?.target?.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    try {
+      if (String(file.type || '').toLowerCase() !== 'application/pdf') {
+        throw new Error('Please upload a PDF resume.');
+      }
+
+      const uploaded = await uploadFile(file);
+      const asset = {
+        url: String(uploaded?.url || '').trim(),
+        fileId: String(uploaded?.fileId || '').trim(),
+        name: String(uploaded?.name || file.name || '').trim(),
+        size: Number(uploaded?.size || file.size || 0) || 0,
+        type: String(uploaded?.type || file.type || '').trim().toLowerCase(),
+      };
+
+      setResumeAsset(asset);
+      form.setFieldValue('resumePath', asset.url);
+      message.success('Resume uploaded successfully.');
+    } catch (error) {
+      console.error(error);
+      message.error(error?.response?.data?.message || error.message || 'Failed to upload resume.');
+    }
   }, [form]);
 
   const handleSave = useCallback(async (values) => {
     setSaving(true);
     try {
-      const payload = buildCandidatePayload(values);
+      const payload = buildCandidatePayload(values, resumeAsset);
       const res = editingRecord?._id
         ? await adminAPI.updateCandidateProfile(editingRecord._id, payload)
         : await adminAPI.createCandidateProfile(payload);
@@ -282,12 +315,12 @@ const CandidateProfilesView = () => {
     } finally {
       setSaving(false);
     }
-  }, [editingRecord, fetchItems, filters, handleCloseEditor, pagination]);
+  }, [editingRecord, fetchItems, filters, handleCloseEditor, pagination, resumeAsset]);
 
   const stats = useMemo(() => ({
     total: pagination.total,
     active: items.filter((item) => item?.isActive !== false).length,
-    withResume: items.filter((item) => item?.resumePath).length,
+    withResume: items.filter((item) => item?.resume?.url || item?.resumePath).length,
     withPreferences: items.filter((item) =>
       [getPreferredLocation(item), getPreferredIndustry(item), getPreferredRole(item), getWorkModes(item)].some((value) => value !== EMPTY)
     ).length,
@@ -345,8 +378,8 @@ const CandidateProfilesView = () => {
         key: 'resume',
         width: 110,
         render: (_, record) => (
-          <Tag color={record?.resumePath ? 'green' : 'default'}>
-            {record?.resumePath ? 'Linked' : 'Missing'}
+          <Tag color={record?.resume?.url || record?.resumePath ? 'green' : 'default'}>
+            {record?.resume?.url || record?.resumePath ? 'Linked' : 'Missing'}
           </Tag>
         ),
       },
@@ -513,8 +546,30 @@ const CandidateProfilesView = () => {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item label="Resume Link" name="resumePath">
-                <Input placeholder="https://..." />
+              <Form.Item label="Resume File" name="resumePath">
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <input
+                    id="candidate-resume-upload"
+                    type="file"
+                    accept="application/pdf"
+                    style={{ display: 'none' }}
+                    onChange={handleResumeUpload}
+                  />
+                  <Space wrap>
+                    <Button onClick={() => document.getElementById('candidate-resume-upload')?.click()}>
+                      Upload PDF Resume
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setResumeAsset(null);
+                        form.setFieldValue('resumePath', '');
+                      }}
+                    >
+                      Remove Resume
+                    </Button>
+                  </Space>
+                  <Input placeholder="Uploaded ImageKit resume URL" readOnly />
+                </Space>
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -612,8 +667,8 @@ const CandidateProfilesView = () => {
                       : 'No linked resume was found for this candidate profile.'}
                   </Text>
                 )}
-                {!resumeRecord && selectedRecord?.resumePath ? (
-                  <Link href={selectedRecord.resumePath} target="_blank" rel="noreferrer">
+                {!resumeRecord && (selectedRecord?.resume?.url || selectedRecord?.resumePath) ? (
+                  <Link href={selectedRecord?.resume?.url || selectedRecord?.resumePath} target="_blank" rel="noreferrer">
                     Open Resume Link
                   </Link>
                 ) : null}

@@ -1,10 +1,17 @@
 import BlogPost from "../models/BlogPost.js";
 import {
+  filterAssetsUsedInHtml,
   hasEmbeddedBase64Images,
   normalizeContentImages,
-  normalizeImageUrl,
-} from "../utils/blogImageStorage.js";
-
+  normalizeImageAssetList,
+} from "../utils/blogImageAssets.js";
+import {
+  collectRemovedFileIds,
+  deleteImageKitFiles,
+  isImageKitUrl,
+  normalizeFileAsset,
+} from "../utils/mediaAssets.js";
+import { logError, logInfo } from "../utils/logger.js";
 const slugify = (value) =>
   String(value || "")
     .trim()
@@ -64,7 +71,55 @@ const convertLegacyContentToHtml = (value) => {
   return String(value || "").trim();
 };
 
-const normalizePayload = async (payload = {}, req) => {
+const normalizeCoverImageInput = (body = {}) => {
+  const directAsset = normalizeFileAsset(body.coverImageAsset, { required: false });
+  if (directAsset) return directAsset;
+
+  const rawUrl = String(body.coverImage || "").trim();
+  const rawFileId = String(body.coverImageFileId || "").trim();
+  if (!rawUrl) {
+    return {
+      url: "",
+      fileId: "",
+      name: "",
+      size: 0,
+      type: "",
+    };
+  }
+
+  if (isImageKitUrl(rawUrl) && rawFileId) {
+    return {
+      url: rawUrl,
+      fileId: rawFileId,
+      name: String(body.coverImageName || "").trim(),
+      size: Number(body.coverImageSize || 0) || 0,
+      type: String(body.coverImageType || "").trim().toLowerCase(),
+    };
+  }
+
+  return null;
+};
+
+const getFormattedCoverAsset = (raw = {}) => {
+  const directAsset = normalizeFileAsset(raw?.coverImage, { required: false });
+  if (directAsset) return directAsset;
+
+  const legacyUrl = String(raw?.coverImage || "").trim();
+  const legacyFileId = String(raw?.coverImageFileId || "").trim();
+  if (isImageKitUrl(legacyUrl) && legacyFileId) {
+    return {
+      url: legacyUrl,
+      fileId: legacyFileId,
+      name: "",
+      size: 0,
+      type: "",
+    };
+  }
+
+  return null;
+};
+
+const normalizePayload = async (payload = {}) => {
   const body = payload && typeof payload === "object" ? payload : {};
   const normalizedStatus =
     body.status !== undefined || body.isPublished === undefined
@@ -73,11 +128,23 @@ const normalizePayload = async (payload = {}, req) => {
         ? "Published"
         : "Draft";
   const isPublished = normalizedStatus === "Published";
+  const normalizedContent =
+    body.content !== undefined
+      ? normalizeContentImages(convertLegacyContentToHtml(body.content))
+      : undefined;
+  const normalizedContentImages =
+    body.contentImages !== undefined
+      ? filterAssetsUsedInHtml(normalizedContent, normalizeImageAssetList(body.contentImages))
+      : undefined;
+  const normalizedCoverImage =
+    body.coverImage !== undefined || body.coverImageAsset !== undefined || body.coverImageFileId !== undefined
+      ? normalizeCoverImageInput(body)
+      : undefined;
 
   return {
     ...(body.title !== undefined ? { title: String(body.title || "").trim() } : {}),
     ...(body.slug !== undefined ? { slug: slugify(body.slug) || null } : {}),
-    ...(body.coverImage !== undefined ? { coverImage: await normalizeImageUrl(body.coverImage, req, "blog-covers") } : {}),
+    ...(normalizedCoverImage !== undefined ? { coverImage: normalizedCoverImage } : {}),
     ...(body.category !== undefined ? { category: String(body.category || "").trim() } : {}),
     ...(body.author !== undefined ? { author: String(body.author || "").trim() } : {}),
     ...((body.publishDate !== undefined || body.publishedAt !== undefined)
@@ -92,9 +159,8 @@ const normalizePayload = async (payload = {}, req) => {
       ? { status: normalizedStatus, isPublished }
       : {}),
     ...(body.excerpt !== undefined ? { excerpt: String(body.excerpt || "").trim() } : {}),
-    ...(body.content !== undefined
-      ? { content: await normalizeContentImages(convertLegacyContentToHtml(body.content), req) }
-      : {}),
+    ...(body.content !== undefined ? { content: normalizedContent } : {}),
+    ...(body.contentImages !== undefined ? { contentImages: normalizedContentImages } : {}),
     ...(body.tags !== undefined ? { tags: normalizeStringArray(body.tags) } : {}),
     ...(body.readingTime !== undefined ? { readingTime: String(body.readingTime || "").trim() } : {}),
   };
@@ -102,12 +168,15 @@ const normalizePayload = async (payload = {}, req) => {
 
 const formatBlogPost = (blogPost) => {
   const raw = blogPost?.toObject ? blogPost.toObject() : blogPost;
+  const coverAsset = getFormattedCoverAsset(raw);
 
   return {
     _id: raw?._id,
     title: raw?.title ?? "",
     slug: raw?.slug ?? "",
-    coverImage: raw?.coverImage ?? "",
+    coverImage: coverAsset?.url ?? "",
+    coverImageAsset: coverAsset,
+    coverImageFileId: coverAsset?.fileId ?? "",
     category: raw?.category ?? "General",
     author: raw?.author ?? "Anaagat Team",
     publishDate: raw?.publishDate
@@ -123,6 +192,7 @@ const formatBlogPost = (blogPost) => {
         : String(raw?.status || "").trim().toLowerCase() === "published",
     excerpt: raw?.excerpt ?? "",
     content: convertLegacyContentToHtml(raw?.content),
+    contentImages: Array.isArray(raw?.contentImages) ? raw.contentImages : [],
     tags: Array.isArray(raw?.tags) ? raw.tags : [],
     readingTime: raw?.readingTime ?? "",
     createdAt: raw?.createdAt ?? null,
@@ -175,35 +245,13 @@ export const getBlogPosts = async (req, res) => {
       }
     }
 
-    console.log("[blogposts:get] raw query params:", JSON.stringify(req.query || {}));
-    console.log("[blogposts:get] mongo filter:", JSON.stringify(query));
+    logInfo("[blogposts:get] raw query params:", JSON.stringify(req.query || {}));
+    logInfo("[blogposts:get] mongo filter:", JSON.stringify(query));
 
     const blogPosts = await BlogPost.find(query).sort({ publishDate: -1, createdAt: -1 });
-    const data = [];
+    const data = blogPosts.map((blogPost) => formatBlogPost(blogPost));
 
-    for (const blogPost of blogPosts) {
-      const updates = {};
-      const normalizedCoverImage = await normalizeImageUrl(blogPost.coverImage, req, "blog-covers");
-      const normalizedContent = await normalizeContentImages(convertLegacyContentToHtml(blogPost.content), req);
-
-      if (String(blogPost.coverImage || "") !== normalizedCoverImage) {
-        updates.coverImage = normalizedCoverImage;
-      }
-
-      if (String(convertLegacyContentToHtml(blogPost.content) || "") !== normalizedContent) {
-        updates.content = normalizedContent;
-      }
-
-      if (Object.keys(updates).length) {
-        console.log("[blogposts:get] migrated media:", blogPost._id, JSON.stringify(updates));
-        await BlogPost.findByIdAndUpdate(blogPost._id, updates, { runValidators: true });
-        Object.assign(blogPost, updates);
-      }
-
-      data.push(formatBlogPost(blogPost));
-    }
-
-    console.log("[blogposts:get] returned blogs:", data.length);
+    logInfo("[blogposts:get] returned blogs:", data.length);
 
     res.json({
       success: true,
@@ -212,17 +260,24 @@ export const getBlogPosts = async (req, res) => {
       currentPage: 1,
     });
   } catch (error) {
-    console.error("getBlogPosts error:", error);
+    logError("getBlogPosts error:", error);
     res.status(500).json({ success: false, message: "Error fetching blog posts" });
   }
 };
 
 export const createBlogPost = async (req, res) => {
   try {
-    const payload = await normalizePayload(req.body, req);
+    const payload = await normalizePayload(req.body);
 
-    console.log("[blogposts:create] incoming:", JSON.stringify(req.body));
-    console.log("[blogposts:create] normalized:", JSON.stringify(payload));
+    logInfo("[blogposts:create] incoming:", JSON.stringify(req.body));
+    logInfo("[blogposts:create] normalized:", JSON.stringify(payload));
+
+    if ("coverImage" in payload && payload.coverImage === null) {
+      return res.status(400).json({
+        success: false,
+        message: "Cover image must come from ImageKit upload only.",
+      });
+    }
 
     if (hasEmbeddedBase64Images(payload.content)) {
       return res.status(400).json({
@@ -239,6 +294,7 @@ export const createBlogPost = async (req, res) => {
     }
 
     payload.slug = payload.slug || (await buildUniqueSlug(payload.title));
+    payload.contentImages = filterAssetsUsedInHtml(payload.content, payload.contentImages);
 
     const blogPost = await BlogPost.create({
       ...payload,
@@ -251,18 +307,30 @@ export const createBlogPost = async (req, res) => {
       blogPost: formatBlogPost(blogPost),
     });
   } catch (error) {
-    console.error("createBlogPost error:", error);
+    logError("createBlogPost error:", error);
     res.status(500).json({ success: false, message: "Error creating blog post" });
   }
 };
 
 export const updateBlogPost = async (req, res) => {
   try {
-    const payload = await normalizePayload(req.body, req);
+    const existingBlogPost = await BlogPost.findById(req.params.id);
+    if (!existingBlogPost) {
+      return res.status(404).json({ success: false, message: "Blog post not found" });
+    }
 
-    console.log("[blogposts:update] id:", req.params.id);
-    console.log("[blogposts:update] incoming:", JSON.stringify(req.body));
-    console.log("[blogposts:update] normalized:", JSON.stringify(payload));
+    const payload = await normalizePayload(req.body);
+
+    logInfo("[blogposts:update] id:", req.params.id);
+    logInfo("[blogposts:update] incoming:", JSON.stringify(req.body));
+    logInfo("[blogposts:update] normalized:", JSON.stringify(payload));
+
+    if ("coverImage" in payload && payload.coverImage === null) {
+      return res.status(400).json({
+        success: false,
+        message: "Cover image must come from ImageKit upload only.",
+      });
+    }
 
     if ("content" in payload && hasEmbeddedBase64Images(payload.content)) {
       return res.status(400).json({
@@ -283,6 +351,27 @@ export const updateBlogPost = async (req, res) => {
       payload.slug = await buildUniqueSlug(payload.title, req.params.id);
     }
 
+    if ("content" in payload || "contentImages" in payload) {
+      const nextContent = "content" in payload ? payload.content : existingBlogPost.content;
+      const nextAssets =
+        "contentImages" in payload ? payload.contentImages : existingBlogPost.contentImages;
+      payload.contentImages = filterAssetsUsedInHtml(nextContent, nextAssets);
+    }
+
+    const previousCover = normalizeFileAsset(existingBlogPost.coverImage, { required: false });
+    const nextCover =
+      "coverImage" in payload ? normalizeFileAsset(payload.coverImage, { required: false }) : previousCover;
+    const coverFileChanged =
+      "coverImage" in payload &&
+      previousCover?.fileId &&
+      nextCover?.fileId !== previousCover.fileId;
+    const coverRemoved =
+      "coverImage" in payload && previousCover?.fileId && !nextCover?.url;
+    const removedContentFileIds = collectRemovedFileIds(
+      existingBlogPost.contentImages,
+      payload.contentImages ?? existingBlogPost.contentImages
+    );
+
     const blogPost = await BlogPost.findByIdAndUpdate(
       req.params.id,
       {
@@ -291,10 +380,11 @@ export const updateBlogPost = async (req, res) => {
       },
       { new: true, runValidators: true }
     );
-
-    if (!blogPost) {
-      return res.status(404).json({ success: false, message: "Blog post not found" });
-    }
+    const filesToDelete = [
+      ...removedContentFileIds,
+      ...(coverFileChanged || coverRemoved ? [previousCover?.fileId] : []),
+    ];
+    await deleteImageKitFiles(filesToDelete);
 
     res.json({
       success: true,
@@ -302,26 +392,31 @@ export const updateBlogPost = async (req, res) => {
       blogPost: formatBlogPost(blogPost),
     });
   } catch (error) {
-    console.error("updateBlogPost error:", error);
+    logError("updateBlogPost error:", error);
     res.status(500).json({ success: false, message: "Error updating blog post" });
   }
 };
 
 export const deleteBlogPost = async (req, res) => {
   try {
-    console.log("[blogposts:delete] id:", req.params.id);
+    logInfo("[blogposts:delete] id:", req.params.id);
     const blogPost = await BlogPost.findByIdAndDelete(req.params.id);
 
     if (!blogPost) {
       return res.status(404).json({ success: false, message: "Blog post not found" });
     }
 
+    await deleteImageKitFiles([
+      blogPost?.coverImage?.fileId,
+      ...((Array.isArray(blogPost.contentImages) ? blogPost.contentImages : []).map((item) => item.fileId)),
+    ]);
+
     res.json({
       success: true,
       message: "Blog post deleted",
     });
   } catch (error) {
-    console.error("deleteBlogPost error:", error);
+    logError("deleteBlogPost error:", error);
     res.status(500).json({ success: false, message: "Error deleting blog post" });
   }
 };

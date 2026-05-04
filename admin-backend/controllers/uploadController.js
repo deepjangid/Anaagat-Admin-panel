@@ -1,28 +1,67 @@
-import { saveImageBuffer } from "../utils/blogImageStorage.js";
+import path from "path";
+import imagekit from "../config/imagekit.js";
+import { logError, logInfo } from "../utils/logger.js";
 
-export const uploadBlogImage = async (req, res) => {
+const allowedMimeTypes = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+]);
+
+export const uploadFile = async (req, res) => {
   try {
-    const mimeType = String(req.headers["content-type"] || "").split(";")[0].trim().toLowerCase();
-    const fileBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body || []);
-
-    if (!mimeType.startsWith("image/")) {
-      return res.status(400).json({ success: false, message: "Only image uploads are allowed" });
+    if (!imagekit) {
+      return res.status(500).json({
+        success: false,
+        message: "ImageKit is not configured on the server",
+      });
     }
 
-    if (!fileBuffer.length) {
-      return res.status(400).json({ success: false, message: "Image file is required" });
+    const file = req.file;
+    if (!file?.buffer?.length) {
+      return res.status(400).json({ success: false, message: "File is required" });
     }
 
-    const url = await saveImageBuffer({ buffer: fileBuffer, mimeType, req, folder: "blog-content" });
+    if (!allowedMimeTypes.has(String(file.mimetype || "").toLowerCase())) {
+      return res.status(400).json({
+        success: false,
+        message: "Only JPG, PNG, WEBP images and PDF files are allowed",
+      });
+    }
 
-    console.log("[uploads:blog-image] mime:", mimeType, "size:", fileBuffer.length, "url:", url);
+    const safeBaseName = String(path.basename(file.originalname || "upload"))
+      .replace(/\s+/g, "-")
+      .replace(/[^a-zA-Z0-9._-]/g, "");
+
+    const uploadedFile = await imagekit.upload({
+      file: file.buffer,
+      fileName: `${Date.now()}-${safeBaseName || "upload"}`,
+      folder: "/admin-panel",
+      useUniqueFileName: true,
+    });
+
+    logInfo(
+      "[uploads:file] mime:",
+      file.mimetype,
+      "size:",
+      file.size,
+      "url:",
+      uploadedFile.url,
+      "fileId:",
+      uploadedFile.fileId
+    );
 
     res.json({
       success: true,
-      url,
+      url: uploadedFile.url,
+      fileId: uploadedFile.fileId,
+      name: file.originalname,
+      size: file.size,
+      type: file.mimetype,
     });
   } catch (error) {
-    console.error("uploadBlogImage error:", error);
-    res.status(500).json({ success: false, message: "Error uploading image" });
+    logError("uploadFile error:", error);
+    res.status(500).json({ success: false, message: "Error uploading file" });
   }
 };

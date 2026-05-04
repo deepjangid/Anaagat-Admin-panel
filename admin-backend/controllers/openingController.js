@@ -1,4 +1,5 @@
 import Opening from "../models/Opening.js";
+import { logInfo } from "../utils/logger.js";
 
 const normalizeStatus = (status) => {
   if (!status) return "active";
@@ -166,8 +167,8 @@ export const getOpenings = async (req, res) => {
 
 export const createOpening = async (req, res) => {
   try {
-    console.log("[createOpening] user:", req.user?.id || null);
-    console.log("[createOpening] body:", JSON.stringify(req.body, null, 2));
+    logInfo("[createOpening] user:", req.user?.id || null);
+    logInfo("[createOpening] body:", JSON.stringify(req.body, null, 2));
 
     const opening = await Opening.create(
       buildInternalOpeningPayload(req.body, req.user, { isCreate: true })

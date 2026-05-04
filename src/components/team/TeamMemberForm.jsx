@@ -12,6 +12,7 @@ import {
   message,
 } from 'antd';
 import { MdDeleteOutline, MdOutlineCloudUpload, MdRefresh } from 'react-icons/md';
+import { uploadFile } from '../../services/api';
 
 const { TextArea } = Input;
 
@@ -39,27 +40,38 @@ const TeamMemberForm = ({
     onValuesChange?.(nextValues);
   };
 
-  const handleBeforeUpload = (file) => {
+  const handleBeforeUpload = async (file) => {
     if (!file.type?.startsWith('image/')) {
       message.error('Please upload an image file.');
       return Upload.LIST_IGNORE;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = String(reader.result || '');
-      setImagePreview(result);
-      form.setFieldValue('profileImage', result);
-      emitValuesChange({ profileImage: result });
-    };
-    reader.readAsDataURL(file);
+    try {
+      const uploaded = await uploadFile(file);
+      const asset = {
+        url: String(uploaded?.url || '').trim(),
+        fileId: String(uploaded?.fileId || '').trim(),
+        name: String(uploaded?.name || file.name || '').trim(),
+        size: Number(uploaded?.size || file.size || 0) || 0,
+        type: String(uploaded?.type || file.type || '').trim().toLowerCase(),
+      };
+
+      setImagePreview(asset.url);
+      form.setFieldValue('profileImage', asset.url);
+      form.setFieldValue('profileImageAsset', asset);
+      emitValuesChange({ profileImage: asset.url, profileImageAsset: asset });
+    } catch (error) {
+      console.error(error);
+      message.error(error?.response?.data?.message || error.message || 'Failed to upload image.');
+    }
     return false;
   };
 
   const handleRemoveImage = () => {
     setImagePreview('');
     form.setFieldValue('profileImage', '');
-    emitValuesChange({ profileImage: '' });
+    form.setFieldValue('profileImageAsset', null);
+    emitValuesChange({ profileImage: '', profileImageAsset: null });
   };
 
   return (

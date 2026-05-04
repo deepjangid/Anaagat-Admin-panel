@@ -6,11 +6,11 @@ import { getApplicationJobTitle } from '../utils/adminRecords';
 
 const { Search } = Input;
 
-const hasResume = (record) => Boolean(record?.resumeData || record?.resumePath || record?.hasCustomResume);
+const hasResume = (record) => Boolean(record?.resumeData || record?.resume?.url || record?.resumePath || record?.hasCustomResume);
 
 const getResumeType = (record) => {
   if (record?.hasCustomResume) return { label: 'Uploaded', color: 'green' };
-  if (record?.resumePath) return { label: 'Linked', color: 'blue' };
+  if (record?.resume?.url || record?.resumePath) return { label: 'Linked', color: 'blue' };
   if (record?.resumeData) return { label: 'Created', color: 'gold' };
   return { label: 'Missing', color: 'default' };
 };
@@ -63,8 +63,8 @@ const Resumes = () => {
         return;
       }
 
-      if (record?.resumePath) {
-        window.open(record.resumePath, '_blank', 'noopener,noreferrer');
+      if (record?.resume?.url || record?.resumePath) {
+        window.open(record?.resume?.url || record.resumePath, '_blank', 'noopener,noreferrer');
         return;
       }
 
@@ -78,7 +78,7 @@ const Resumes = () => {
   const stats = useMemo(() => ({
     total: pagination.total,
     uploaded: items.filter((item) => item?.hasCustomResume).length,
-    linked: items.filter((item) => !item?.hasCustomResume && item?.resumePath).length,
+    linked: items.filter((item) => !item?.hasCustomResume && (item?.resume?.url || item?.resumePath)).length,
     created: items.filter((item) => !item?.hasCustomResume && !item?.resumePath && item?.resumeData).length,
   }), [items, pagination.total]);
 

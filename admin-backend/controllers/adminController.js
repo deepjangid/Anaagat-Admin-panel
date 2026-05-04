@@ -96,8 +96,8 @@ export const getDashboard = async (req, res) => {
       ContactMessage.countDocuments({}),
       Application.countDocuments({
         $or: [
-          { resumeData: { $exists: true, $ne: null } },
           { resumePath: { $exists: true, $ne: null } },
+          { "resume.url": { $exists: true, $ne: null } },
           { hasCustomResume: true },
         ],
       }),

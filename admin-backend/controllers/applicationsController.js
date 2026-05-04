@@ -4,6 +4,7 @@ import Job from "../models/Job.js";
 import Opening from "../models/Opening.js";
 import User from "../models/user.js";
 import CandidateProfile from "../models/CandidateProfile.js";
+import { normalizeFileAsset } from "../utils/mediaAssets.js";
 import {
   APPLICATION_STATUS_OPTIONS,
   buildApplicationSearchQuery,
@@ -95,20 +96,23 @@ const getCandidateProfileForApplication = async (application = {}) => {
 const mergeResumeFields = (application = {}, candidateProfile = null) => {
   if (!candidateProfile) return application;
 
-  const profileResumePath = candidateProfile?.resumePath || candidateProfile?.resume || undefined;
-  const profileResumeData = candidateProfile?.resumeData || undefined;
+  const profileResumeAsset = normalizeFileAsset(candidateProfile?.resume, { required: false });
+  const profileResumePath = profileResumeAsset?.url || candidateProfile?.resumePath || undefined;
   const hasProfileResume =
     Boolean(candidateProfile?.hasCustomResume) ||
     Boolean(profileResumePath) ||
-    Boolean(profileResumeData);
+    Boolean(profileResumeAsset?.fileId);
 
   if (!hasProfileResume) return application;
 
   return {
     ...application,
     resumePath: profileResumePath ?? application.resumePath,
-    resumeData: profileResumeData ?? application.resumeData,
-    hasCustomResume: Boolean(candidateProfile?.hasCustomResume) || Boolean(profileResumePath) || Boolean(profileResumeData),
+    resume: profileResumeAsset || application.resume || null,
+    hasCustomResume:
+      Boolean(candidateProfile?.hasCustomResume) ||
+      Boolean(profileResumeAsset?.fileId) ||
+      Boolean(profileResumePath),
     updatedAt: candidateProfile?.updatedAt || application.updatedAt,
   };
 };
@@ -292,12 +296,15 @@ export const createApplication = async (req, res) => {
       appliedFor,
       position: appliedFor,
       experience: toExperienceArray(candidateProfile?.experience),
-      resumePath: candidateProfile?.resumePath || candidateProfile?.resume || undefined,
-      resumeData: candidateProfile?.resumeData || undefined,
+      resume: normalizeFileAsset(candidateProfile?.resume, { required: false }) || undefined,
+      resumePath:
+        normalizeFileAsset(candidateProfile?.resume, { required: false })?.url ||
+        candidateProfile?.resumePath ||
+        undefined,
       hasCustomResume:
         Boolean(candidateProfile?.hasCustomResume) ||
         Boolean(candidateProfile?.resumePath) ||
-        Boolean(candidateProfile?.resumeData),
+        Boolean(normalizeFileAsset(candidateProfile?.resume, { required: false })?.fileId),
       status: "pending",
       adminMessage: "",
       statusUpdatedAt: appliedAt,
@@ -357,8 +364,8 @@ export const getApplications = async (req, res) => {
     if (hasResume) {
       const resumeQuery = {
         $or: [
-          { resumeData: { $exists: true, $ne: null } },
           { resumePath: { $exists: true, $ne: null } },
+          { "resume.url": { $exists: true, $ne: null } },
           { hasCustomResume: true },
         ],
       };
@@ -619,32 +626,36 @@ export const downloadApplicationResume = async (req, res) => {
     if (!application) return res.status(404).json({ success: false, message: "Not found" });
 
     const candidateProfile = await getCandidateProfileForApplication(application);
-    const latestResumeData = candidateProfile?.resumeData || application.resumeData;
-
-    const data = latestResumeData;
-    if (!data) {
-      return res.status(404).json({ success: false, message: "Resume not available" });
-    }
-
-    // Mongo Binary becomes a Buffer in most cases (or an object with a `buffer` field).
-    let buffer = null;
-    if (Buffer.isBuffer(data)) buffer = data;
-    else if (data?.buffer && Buffer.isBuffer(data.buffer)) buffer = data.buffer;
-    else if (typeof data === "string") buffer = Buffer.from(data, "base64");
-    else if (Array.isArray(data?.data)) buffer = Buffer.from(data.data);
-
-    if (!buffer) {
-      return res.status(500).json({ success: false, message: "Invalid resume data" });
-    }
-
+    const latestResumeAsset =
+      normalizeFileAsset(candidateProfile?.resume, { required: false }) ||
+      normalizeFileAsset(application?.resume, { required: false });
+    const latestResumeUrl =
+      latestResumeAsset?.url ||
+      candidateProfile?.resumePath ||
+      application?.resumePath ||
+      "";
     const safeName = String(application.fullName || "Applicant")
       .trim()
       .replace(/\s+/g, "_")
       .replace(/[^a-zA-Z0-9._-]/g, "");
 
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="${safeName || "Applicant"}_Resume.pdf"`);
-    res.send(buffer);
+    if (!latestResumeUrl) {
+      return res.status(404).json({ success: false, message: "Resume not available" });
+    }
+
+    const response = await fetch(latestResumeUrl);
+    if (!response.ok) {
+      return res.status(502).json({ success: false, message: "Failed to fetch resume file" });
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const contentType = response.headers.get("content-type") || latestResumeAsset?.type || "application/pdf";
+    res.setHeader("Content-Type", contentType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${safeName || "Applicant"}${contentType === "application/pdf" ? "_Resume.pdf" : ""}"`
+    );
+    res.send(Buffer.from(arrayBuffer));
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Failed to download resume" });

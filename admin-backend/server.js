@@ -4,6 +4,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+import { isProduction, logError, logInfo, logWarn } from "./utils/logger.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
@@ -60,7 +61,7 @@ const corsOptions = {
     if (corsAllowAll || corsOrigins.length === 0) return callback(null, true);
 
     if (corsOrigins.includes(origin)) return callback(null, true);
-    console.warn("[cors] blocked origin:", origin, "allowed:", corsOrigins);
+    logWarn("[cors] blocked origin:", origin, "allowed:", corsOrigins);
     return callback(null, false);
   },
   credentials: true,
@@ -69,7 +70,7 @@ const corsOptions = {
   optionsSuccessStatus: 204,
 };
 
-console.log(
+logInfo(
   "[cors] allowlist:",
   corsAllowAll ? "*" : corsOrigins.length ? corsOrigins : "(not set - allow all)"
 );
@@ -79,8 +80,6 @@ app.options(/.*/, cors(corsOptions));
 
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true, limit: "25mb" }));
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
 app.get("/api/health", (req, res) => {
   res.json({ ok: true });
 });
@@ -101,26 +100,35 @@ app.use((req, res) => {
   res.status(404).json({ success: false, message: "Route not found" });
 });
 
+app.use((error, _req, res, _next) => {
+  logError("Unhandled request error:", error?.message || error);
+  res.status(500).json({ success: false, message: "Internal server error" });
+});
+
 const startServer = async () => {
   try {
-    const mongoUri = stripWrappingQuotes(process.env.MONGODB_URI);
+    const mongoUri = stripWrappingQuotes(process.env.MONGO_URI || process.env.MONGODB_URI);
 
     if (!mongoUri) {
       throw new Error(
-        "Missing MONGODB_URI. Add it to admin-backend/.env or the project root .env."
+        "Missing MONGO_URI. Add it to admin-backend/.env or the project root .env."
       );
     }
 
     await mongoose.connect(mongoUri);
 
-    console.log("MongoDB connected", mongoose.connection.name);
+    logInfo("MongoDB connected", mongoose.connection.name);
+    mongoose.connection.on("error", (error) => {
+      logError("MongoDB runtime error:", error?.message || error);
+    });
 
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+      console.log(`Server running on port ${PORT}${isProduction ? "" : " (dev)"}`);
     });
   } catch (err) {
-    console.error("DB connection error:", err.message || err);
+    logError("DB connection error:", err.message || err);
+    process.exitCode = 1;
   }
 };
 

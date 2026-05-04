@@ -116,14 +116,21 @@ export const blogPostsAPI = {
   delete: (id) => api.delete(`/blogposts/${id}`),
 };
 
+export const uploadFile = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await api.post("/uploads/file", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  return response.data;
+};
+
 export const blogUploadsAPI = {
-  uploadImage: (file) =>
-    api.post("/uploads/blog-image", file, {
-      headers: {
-        "Content-Type": file?.type || "application/octet-stream",
-      },
-      transformRequest: [(data) => data],
-    }),
+  uploadImage: (file) => uploadFile(file),
 };
 
 // â”€â”€â”€ APPLICATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

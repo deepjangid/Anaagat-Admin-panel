@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import 'react-quill-new/dist/quill.snow.css';
 import { Button, Card, Form, Image, Input, Modal, Popconfirm, Space, Table, Tag, Typography, message } from 'antd';
 import { MdAdd, MdDelete, MdEdit, MdRefresh, MdUpload, MdVisibility } from 'react-icons/md';
-import { blogPostsAPI, blogUploadsAPI } from '../services/api';
+import { blogPostsAPI, uploadFile } from '../services/api';
 import BlogContentRenderer from '../components/BlogContentRenderer';
 
 const { TextArea } = Input;
@@ -24,6 +24,8 @@ const emptyBlog = {
   slug: '',
   excerpt: '',
   coverImage: '',
+  coverImageFileId: '',
+  coverImageAsset: null,
   content: '',
   tags: '',
   readingTime: '',
@@ -56,7 +58,20 @@ const stripHtml = (value) =>
     .trim();
 
 const hasEmbeddedBase64Image = (value) => /<img\b[^>]*\bsrc=["']data:image\//i.test(String(value || ''));
-const isValidImageUrl = (value) => /^https?:\/\//i.test(String(value || '').trim());
+const isValidImageUrl = (value) => /^https:\/\/ik\.imagekit\.io\//i.test(String(value || '').trim());
+const syncContentImagesWithHtml = (html, assets = []) => {
+  const matches = String(html || '').match(/<img\b[^>]*\bsrc=["'](.*?)["'][^>]*>/gi) || [];
+  const urlSet = new Set(
+    matches
+      .map((match) => match.match(/\bsrc=["'](.*?)["']/i)?.[1] || '')
+      .map((url) => String(url || '').trim())
+      .filter(Boolean)
+  );
+
+  return (Array.isArray(assets) ? assets : []).filter(
+    (asset) => asset?.url && asset?.fileId && urlSet.has(String(asset.url).trim())
+  );
+};
 
 class EditorErrorBoundary extends React.Component {
   constructor(props) {
@@ -92,6 +107,8 @@ const Blogs = () => {
   const [loading, setLoading] = useState(false);
   const [readingBlog, setReadingBlog] = useState(null);
   const [editorHtml, setEditorHtml] = useState('');
+  const [coverImageAsset, setCoverImageAsset] = useState(null);
+  const [contentImages, setContentImages] = useState([]);
   const [mounted, setMounted] = useState(false);
   const [QuillComponent, setQuillComponent] = useState(null);
   const [form] = Form.useForm();
@@ -159,12 +176,16 @@ const Blogs = () => {
     setOpen(false);
     setEditingId(null);
     setEditorHtml('');
+    setCoverImageAsset(null);
+    setContentImages([]);
     form.resetFields();
   };
 
   const handleAdd = () => {
     setEditingId(null);
     setEditorHtml('');
+    setCoverImageAsset(null);
+    setContentImages([]);
     form.setFieldsValue(emptyBlog);
     setOpen(true);
   };
@@ -173,6 +194,8 @@ const Blogs = () => {
     const rawContent = String(item.content || '');
     setEditingId(item._id);
     setEditorHtml(rawContent);
+    setCoverImageAsset(item.coverImageAsset || null);
+    setContentImages(Array.isArray(item.contentImages) ? item.contentImages : []);
     form.setFieldsValue({
       ...emptyBlog,
       ...item,
@@ -191,19 +214,26 @@ const Blogs = () => {
       throw new Error('Please select an image file.');
     }
 
-    const maxFileSizeBytes = 10 * 1024 * 1024;
+    const maxFileSizeBytes = 5 * 1024 * 1024;
     if (file.size > maxFileSizeBytes) {
-      throw new Error('Image is too large. Please choose an image smaller than 10 MB.');
+      throw new Error('Image is too large. Please choose an image smaller than 5 MB.');
     }
 
-    const response = await blogUploadsAPI.uploadImage(file);
-    const imageUrl = String(response.data?.url || '').trim();
+    const response = await uploadFile(file);
+    const imageUrl = String(response?.url || '').trim();
+    const fileId = String(response?.fileId || '').trim();
 
-    if (!isValidImageUrl(imageUrl)) {
+    if (!isValidImageUrl(imageUrl) || !fileId) {
       throw new Error('Uploaded image URL is invalid.');
     }
 
-    return imageUrl;
+    return {
+      url: imageUrl,
+      fileId,
+      name: String(response?.name || file.name || '').trim(),
+      size: Number(response?.size || file.size || 0) || 0,
+      type: String(response?.type || file.type || '').trim().toLowerCase(),
+    };
   };
 
   const handleDelete = async (id) => {
@@ -225,12 +255,14 @@ const Blogs = () => {
     if (!file) return;
 
     try {
-      const imageUrl = await uploadImageFile(file);
-      form.setFieldValue('coverImage', imageUrl);
+      const uploadedImage = await uploadImageFile(file);
+      form.setFieldValue('coverImage', uploadedImage.url);
+      form.setFieldValue('coverImageFileId', uploadedImage.fileId);
+      setCoverImageAsset(uploadedImage);
       message.success('Cover image uploaded successfully.');
     } catch (error) {
       console.error('Cover image upload error:', error);
-      message.error(error.message || 'Failed to upload image from device.');
+      message.error(error.response?.data?.message || error.message || 'Failed to upload image from device.');
     }
   };
 
@@ -245,7 +277,7 @@ const Blogs = () => {
       if (!file) return;
 
       try {
-        const imageUrl = await uploadImageFile(file);
+        const uploadedImage = await uploadImageFile(file);
         const quill = quillRef.current?.getEditor?.();
         if (!quill) {
           message.error('Editor is not ready yet.');
@@ -253,12 +285,18 @@ const Blogs = () => {
         }
 
         const range = quill.getSelection(true) || { index: quill.getLength(), length: 0 };
-        quill.insertEmbed(range.index, 'image', imageUrl, 'user');
+        quill.insertEmbed(range.index, 'image', uploadedImage.url, 'user');
         quill.setSelection(range.index + 1, 0, 'silent');
+        setContentImages((prev) => {
+          const next = Array.isArray(prev) ? prev.filter(Boolean) : [];
+          const exists = next.some((item) => item.fileId === uploadedImage.fileId || item.url === uploadedImage.url);
+          if (exists) return next;
+          return [...next, uploadedImage];
+        });
         message.success('Editor image uploaded successfully.');
       } catch (error) {
         console.error('Editor image upload error:', error);
-        message.error(error.message || 'Failed to upload editor image.');
+        message.error(error.response?.data?.message || error.message || 'Failed to upload editor image.');
       }
     };
   };
@@ -293,6 +331,8 @@ const Blogs = () => {
         ...values,
         tags: splitMultilineField(values.tags),
         content: editorHtml,
+        coverImageAsset,
+        contentImages: syncContentImagesWithHtml(editorHtml, contentImages),
         status: 'Published',
         isPublished: true,
       };
@@ -454,6 +494,9 @@ const Blogs = () => {
 
       <Modal title={editingId ? 'Edit Blog' : 'Add Blog'} open={open} onCancel={closeModal} footer={null} width={1040}>
         <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={emptyBlog}>
+          <Form.Item name="coverImageFileId" hidden>
+            <Input type="hidden" />
+          </Form.Item>
           <input
             ref={fileInputRef}
             type="file"
@@ -516,13 +559,24 @@ const Blogs = () => {
             <Form.Item label="Cover Image" extra="Paste an image URL or upload from device. Cover uses object-contain so it won't crop.">
               <Space direction="vertical" style={{ width: '100%' }} size="middle">
                 <Form.Item name="coverImage" noStyle>
-                  <Input placeholder="https://example.com/blog-cover.jpg or upload from device" />
+                  <Input
+                    placeholder="Upload from device to attach an ImageKit cover image"
+                    readOnly
+                  />
                 </Form.Item>
                 <Space wrap>
                   <Button icon={<MdUpload />} onClick={() => fileInputRef.current?.click()}>
                     Upload From Device
                   </Button>
-                  <Button onClick={() => form.setFieldValue('coverImage', '')}>Remove Cover</Button>
+                  <Button
+                    onClick={() => {
+                      form.setFieldValue('coverImage', '');
+                      form.setFieldValue('coverImageFileId', '');
+                      setCoverImageAsset(null);
+                    }}
+                  >
+                    Remove Cover
+                  </Button>
                 </Space>
                 <Form.Item shouldUpdate={(prev, next) => prev.coverImage !== next.coverImage} noStyle>
                   {() => {

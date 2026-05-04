@@ -1,0 +1,325 @@
+{
+  "generatedAt": "2026-05-04T08:21:52.229Z",
+  "options": {
+    "limit": 2,
+    "minSize": 0,
+    "collections": [
+      "candidatefiles"
+    ]
+  },
+  "collections": [
+    {
+      "collection": "candidatefiles",
+      "totalDocs": 2,
+      "analyzedDocs": 2,
+      "analyzedBytes": 105930,
+      "analyzedSize": "103 KB",
+      "largestDocumentSizeBytes": 95369,
+      "largestDocumentSize": "93 KB",
+      "docs": [
+        {
+          "_id": "69ec5cf5819db2fe2d785f06",
+          "totalSizeBytes": 95369,
+          "totalSize": "93 KB",
+          "largestField": {
+            "field": "data",
+            "sizeBytes": 95063,
+            "size": "93 KB",
+            "type": "buffer"
+          },
+          "topFields": [
+            {
+              "field": "data",
+              "sizeBytes": 95063,
+              "size": "93 KB",
+              "type": "buffer",
+              "flagged": true,
+              "notes": [
+                "over-5KB",
+                "binary/blob",
+                "highlighted-name"
+              ]
+            },
+            {
+              "field": "fileName",
+              "sizeBytes": 42,
+              "size": "42 B",
+              "type": "string",
+              "flagged": true,
+              "notes": [
+                "highlighted-name"
+              ]
+            },
+            {
+              "field": "_id",
+              "sizeBytes": 30,
+              "size": "30 B",
+              "type": "objectId",
+              "flagged": false,
+              "notes": []
+            },
+            {
+              "field": "candidateUserId",
+              "sizeBytes": 30,
+              "size": "30 B",
+              "type": "objectId",
+              "flagged": false,
+              "notes": []
+            },
+            {
+              "field": "createdAt",
+              "sizeBytes": 26,
+              "size": "26 B",
+              "type": "date",
+              "flagged": false,
+              "notes": []
+            },
+            {
+              "field": "updatedAt",
+              "sizeBytes": 26,
+              "size": "26 B",
+              "type": "date",
+              "flagged": false,
+              "notes": []
+            },
+            {
+              "field": "_id.buffer",
+              "sizeBytes": 19,
+              "size": "19 B",
+              "type": "buffer",
+              "flagged": true,
+              "notes": [
+                "binary/blob",
+                "highlighted-name"
+              ]
+            },
+            {
+              "field": "candidateUserId.buffer",
+              "sizeBytes": 19,
+              "size": "19 B",
+              "type": "buffer",
+              "flagged": true,
+              "notes": [
+                "binary/blob",
+                "highlighted-name"
+              ]
+            },
+            {
+              "field": "kind",
+              "sizeBytes": 15,
+              "size": "15 B",
+              "type": "string",
+              "flagged": false,
+              "notes": []
+            },
+            {
+              "field": "mimeType",
+              "sizeBytes": 12,
+              "size": "12 B",
+              "type": "string",
+              "flagged": false,
+              "notes": []
+            }
+          ],
+          "flaggedFields": [
+            {
+              "field": "data",
+              "sizeBytes": 95063,
+              "size": "93 KB",
+              "type": "buffer",
+              "flagged": true,
+              "notes": [
+                "over-5KB",
+                "binary/blob",
+                "highlighted-name"
+              ]
+            },
+            {
+              "field": "fileName",
+              "sizeBytes": 42,
+              "size": "42 B",
+              "type": "string",
+              "flagged": true,
+              "notes": [
+                "highlighted-name"
+              ]
+            },
+            {
+              "field": "_id.buffer",
+              "sizeBytes": 19,
+              "size": "19 B",
+              "type": "buffer",
+              "flagged": true,
+              "notes": [
+                "binary/blob",
+                "highlighted-name"
+              ]
+            },
+            {
+              "field": "candidateUserId.buffer",
+              "sizeBytes": 19,
+              "size": "19 B",
+              "type": "buffer",
+              "flagged": true,
+              "notes": [
+                "binary/blob",
+                "highlighted-name"
+              ]
+            }
+          ]
+        },
+        {
+          "_id": "69f5d63fc056bb637c874bb2",
+          "totalSizeBytes": 10561,
+          "totalSize": "10 KB",
+          "largestField": {
+            "field": "data",
+            "sizeBytes": 10282,
+            "size": "10 KB",
+            "type": "buffer"
+          },
+          "topFields": [
+            {
+              "field": "data",
+              "sizeBytes": 10282,
+              "size": "10 KB",
+              "type": "buffer",
+              "flagged": true,
+              "notes": [
+                "over-5KB",
+                "binary/blob",
+                "highlighted-name"
+              ]
+            },
+            {
+              "field": "_id",
+              "sizeBytes": 30,
+              "size": "30 B",
+              "type": "objectId",
+              "flagged": false,
+              "notes": []
+            },
+            {
+              "field": "candidateUserId",
+              "sizeBytes": 30,
+              "size": "30 B",
+              "type": "objectId",
+              "flagged": false,
+              "notes": []
+            },
+            {
+              "field": "createdAt",
+              "sizeBytes": 26,
+              "size": "26 B",
+              "type": "date",
+              "flagged": false,
+              "notes": []
+            },
+            {
+              "field": "updatedAt",
+              "sizeBytes": 26,
+              "size": "26 B",
+              "type": "date",
+              "flagged": false,
+              "notes": []
+            },
+            {
+              "field": "_id.buffer",
+              "sizeBytes": 19,
+              "size": "19 B",
+              "type": "buffer",
+              "flagged": true,
+              "notes": [
+                "binary/blob",
+                "highlighted-name"
+              ]
+            },
+            {
+              "field": "candidateUserId.buffer",
+              "sizeBytes": 19,
+              "size": "19 B",
+              "type": "buffer",
+              "flagged": true,
+              "notes": [
+                "binary/blob",
+                "highlighted-name"
+              ]
+            },
+            {
+              "field": "kind",
+              "sizeBytes": 15,
+              "size": "15 B",
+              "type": "string",
+              "flagged": false,
+              "notes": []
+            },
+            {
+              "field": "fileName",
+              "sizeBytes": 15,
+              "size": "15 B",
+              "type": "string",
+              "flagged": true,
+              "notes": [
+                "highlighted-name"
+              ]
+            },
+            {
+              "field": "mimeType",
+              "sizeBytes": 12,
+              "size": "12 B",
+              "type": "string",
+              "flagged": false,
+              "notes": []
+            }
+          ],
+          "flaggedFields": [
+            {
+              "field": "data",
+              "sizeBytes": 10282,
+              "size": "10 KB",
+              "type": "buffer",
+              "flagged": true,
+              "notes": [
+                "over-5KB",
+                "binary/blob",
+                "highlighted-name"
+              ]
+            },
+            {
+              "field": "_id.buffer",
+              "sizeBytes": 19,
+              "size": "19 B",
+              "type": "buffer",
+              "flagged": true,
+              "notes": [
+                "binary/blob",
+                "highlighted-name"
+              ]
+            },
+            {
+              "field": "candidateUserId.buffer",
+              "sizeBytes": 19,
+              "size": "19 B",
+              "type": "buffer",
+              "flagged": true,
+              "notes": [
+                "binary/blob",
+                "highlighted-name"
+              ]
+            },
+            {
+              "field": "fileName",
+              "sizeBytes": 15,
+              "size": "15 B",
+              "type": "string",
+              "flagged": true,
+              "notes": [
+                "highlighted-name"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
