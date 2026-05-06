@@ -31,7 +31,30 @@ const Sidebar = ({ collapsed, isMobile = false, onNavigate, unreadCount = 0 }) =
     {
       key: '/dashboard',
       icon: <MdDashboard size={20} />,
-      label: 'Dashboard',
+      label: <span data-tour="sidebar-dashboard">Dashboard</span>,
+    },
+    {
+      key: '/admin/inbox',
+      icon: (
+        <div className="relative">
+          <Inbox size={20} />
+          {unreadCount > 0 ? (
+            <span className="absolute -right-2 -top-2 inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white shadow-sm">
+              {formatBadgeCount(unreadCount)}
+            </span>
+          ) : null}
+        </div>
+      ),
+      label: (
+        <span className="flex items-center justify-between gap-2" data-tour="sidebar-inbox">
+          <span>Inbox</span>
+          {unreadCount > 0 ? (
+            <span className="rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-semibold leading-none text-white">
+              {formatBadgeCount(unreadCount)}
+            </span>
+          ) : null}
+        </span>
+      ),
     },
     {
       key: '/job-requirements',
@@ -103,29 +126,6 @@ const Sidebar = ({ collapsed, isMobile = false, onNavigate, unreadCount = 0 }) =
       key: '/blogs',
       icon: <MdArticle size={20} />,
       label: 'Blogs',
-    },
-    {
-      key: '/admin/inbox',
-      icon: (
-        <div className="relative">
-          <Inbox size={20} />
-          {unreadCount > 0 ? (
-            <span className="absolute -right-2 -top-2 inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white shadow-sm">
-              {formatBadgeCount(unreadCount)}
-            </span>
-          ) : null}
-        </div>
-      ),
-      label: (
-        <span className="flex items-center justify-between gap-2">
-          <span>Inbox</span>
-          {unreadCount > 0 ? (
-            <span className="rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-semibold leading-none text-white">
-              {formatBadgeCount(unreadCount)}
-            </span>
-          ) : null}
-        </span>
-      ),
     },
   ];
 

@@ -173,36 +173,6 @@ const TeamManagementPage = () => {
     }
   };
 
-  const moveMember = async (memberId, direction) => {
-    const ordered = normalizeMembers(items);
-    const currentIndex = ordered.findIndex((item) => item._id === memberId);
-    const targetIndex = currentIndex + direction;
-
-    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= ordered.length) return;
-
-    const nextItems = [...ordered];
-    [nextItems[currentIndex], nextItems[targetIndex]] = [nextItems[targetIndex], nextItems[currentIndex]];
-    const resequenced = resequenceMembers(nextItems);
-
-    try {
-      setSaving(true);
-      await Promise.all(
-        resequenced.map((member) =>
-          adminAPI.updateTeamMember(member._id, {
-            displayOrder: member.displayOrder,
-          })
-        )
-      );
-      setItems(resequenced);
-      message.success('Team member order updated.');
-    } catch (error) {
-      console.error(error);
-      message.error(error?.response?.data?.message || 'Failed to update order.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleRefresh = () => {
     fetchItems();
   };
@@ -262,6 +232,7 @@ const TeamManagementPage = () => {
             title={`Team Members (${filteredItems.length})`}
             styles={{ body: { padding: 20 } }}
             loading={loading}
+            data-tour="team-list"
           >
             {filteredItems.length ? (
               <TeamMembersList
@@ -282,6 +253,7 @@ const TeamManagementPage = () => {
               className="admin-surface-card"
               title={editingId ? 'Edit Team Member' : 'Add Team Member'}
               styles={{ body: { padding: 20 } }}
+              data-tour="team-form"
             >
               <TeamMemberForm
                 initialValues={draftMember}
@@ -297,6 +269,7 @@ const TeamManagementPage = () => {
               title="Live Preview"
               className="admin-surface-card content-preview-card"
               styles={{ body: { padding: 20 } }}
+              data-tour="team-preview"
             >
               <TeamCardPreview member={draftMember} />
             </Card>

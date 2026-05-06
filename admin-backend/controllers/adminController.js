@@ -6,6 +6,7 @@ import CandidateProfile from "../models/CandidateProfile.js";
 import ClientProfile from "../models/ClientProfile.js";
 import ContactMessage from "../models/ContactMessage.js";
 import mongoose from "mongoose";
+import { logError } from "../utils/logger.js";
 
 export const getUsers = async (req, res) => {
   try {
@@ -49,13 +50,27 @@ export const getUsers = async (req, res) => {
       totalPages: Math.max(Math.ceil(total / limit), 1),
     });
   } catch (error) {
+    logError("getUsers error:", error);
     res.status(500).json({ success: false, message: "Failed to fetch users" });
   }
 };
 
 export const deleteUser = async (req, res) => {
-  await User.findByIdAndDelete(req.params.id);
-  res.json({ msg: "User deleted" });
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Invalid user id" });
+    }
+
+    const deleted = await User.findByIdAndDelete(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    res.json({ success: true, msg: "User deleted" });
+  } catch (error) {
+    logError("deleteUser error:", error);
+    res.status(500).json({ success: false, message: "Failed to delete user" });
+  }
 };
 
 export const getDashboard = async (req, res) => {
@@ -121,6 +136,7 @@ export const getDashboard = async (req, res) => {
       resumes,
     });
   } catch (error) {
+    logError("getDashboard error:", error);
     res.status(500).json({ message: "Dashboard error", error: String(error) });
   }
 };

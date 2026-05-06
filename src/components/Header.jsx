@@ -9,7 +9,12 @@ const { Text } = Typography;
 
 const formatBadgeCount = (count) => (count > 99 ? '99+' : count);
 
-const Header = ({ collapsed, setCollapsed, isMobile = false, unreadCount = 0 }) => {
+const Header = ({
+  collapsed,
+  setCollapsed,
+  isMobile = false,
+  unreadCount = 0,
+}) => {
   const navigate = useNavigate();
   const userMenuItems = [
     {
@@ -54,6 +59,7 @@ const Header = ({ collapsed, setCollapsed, isMobile = false, unreadCount = 0 }) 
           onClick={() => navigate('/admin/inbox')}
           className="relative flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition-all duration-200 hover:scale-[1.01] hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
           aria-label="Open inbox notifications"
+          data-tour="header-inbox-button"
         >
           <Bell size={18} />
           {unreadCount > 0 ? (
@@ -63,7 +69,7 @@ const Header = ({ collapsed, setCollapsed, isMobile = false, unreadCount = 0 }) 
           ) : null}
         </button>
         <Dropdown menu={{ items: userMenuItems, onClick: handleUserMenuClick }} placement="bottomRight">
-          <Space className="admin-header-profile" size={12}>
+          <Space className="admin-header-profile" size={12} data-tour="header-profile-settings">
             <div className="admin-header-profile-copy">
               <Text className="admin-header-profile-label">Administrator</Text>
               <Text className="admin-header-profile-link">View profile</Text>

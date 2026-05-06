@@ -147,7 +147,7 @@ const ContactMessagesView = () => {
         <h1>All Contacts</h1>
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }} data-tour="contacts-stats">
         <Col xs={12} sm={12} lg={8}>
           <Card className="admin-surface-card" size="small">
             <Statistic title="Total Contacts" value={stats.total} prefix={<MdMail />} />
@@ -165,7 +165,7 @@ const ContactMessagesView = () => {
         </Col>
       </Row>
 
-      <Card className="admin-surface-card" style={{ marginBottom: 16 }}>
+      <Card className="admin-surface-card" style={{ marginBottom: 16 }} data-tour="contacts-search">
         <Space wrap>
           <Search
             placeholder="Search by name, email, phone, city, company, or source"
@@ -179,7 +179,7 @@ const ContactMessagesView = () => {
         </Space>
       </Card>
 
-      <Card className="admin-surface-card">
+      <Card className="admin-surface-card" data-tour="contacts-table">
         <Table
           columns={columns}
           dataSource={items}

@@ -114,6 +114,7 @@ const Blogs = () => {
   const [form] = Form.useForm();
   const fileInputRef = useRef(null);
   const quillRef = useRef(null);
+  const initialCoverRef = useRef({ url: '', fileId: '' });
 
   const fetchBlogs = async () => {
     setLoading(true);
@@ -178,6 +179,7 @@ const Blogs = () => {
     setEditorHtml('');
     setCoverImageAsset(null);
     setContentImages([]);
+    initialCoverRef.current = { url: '', fileId: '' };
     form.resetFields();
   };
 
@@ -186,16 +188,22 @@ const Blogs = () => {
     setEditorHtml('');
     setCoverImageAsset(null);
     setContentImages([]);
+    initialCoverRef.current = { url: '', fileId: '' };
     form.setFieldsValue(emptyBlog);
     setOpen(true);
   };
 
   const handleEdit = (item) => {
     const rawContent = String(item.content || '');
+    const initialCover = {
+      url: String(item.coverImage || '').trim(),
+      fileId: String(item.coverImageFileId || '').trim(),
+    };
     setEditingId(item._id);
     setEditorHtml(rawContent);
     setCoverImageAsset(item.coverImageAsset || null);
     setContentImages(Array.isArray(item.contentImages) ? item.contentImages : []);
+    initialCoverRef.current = initialCover;
     form.setFieldsValue({
       ...emptyBlog,
       ...item,
@@ -317,13 +325,20 @@ const Blogs = () => {
 
   const handleSubmit = async (values) => {
     try {
-      if (values.coverImage && !isValidImageUrl(values.coverImage)) {
-        message.error('Cover image must be a valid http or https URL.');
+      if (hasEmbeddedBase64Image(editorHtml)) {
+        message.error('Base64 images are not allowed. Please upload images using the editor image button.');
         return;
       }
 
-      if (hasEmbeddedBase64Image(editorHtml)) {
-        message.error('Base64 images are not allowed. Please upload images using the editor image button.');
+      const nextCoverUrl = String(values.coverImage || '').trim();
+      const nextCoverFileId = String(values.coverImageFileId || '').trim();
+      const originalCover = initialCoverRef.current || { url: '', fileId: '' };
+      const coverRemoved = !nextCoverUrl && Boolean(originalCover.url);
+      const coverChanged =
+        nextCoverUrl !== originalCover.url || nextCoverFileId !== originalCover.fileId;
+
+      if (coverChanged && nextCoverUrl && !isValidImageUrl(nextCoverUrl)) {
+        message.error('Cover image must be uploaded through ImageKit before saving.');
         return;
       }
 
@@ -331,11 +346,24 @@ const Blogs = () => {
         ...values,
         tags: splitMultilineField(values.tags),
         content: editorHtml,
-        coverImageAsset,
         contentImages: syncContentImagesWithHtml(editorHtml, contentImages),
         status: 'Published',
         isPublished: true,
       };
+
+      if (coverRemoved) {
+        payload.coverImage = '';
+        payload.coverImageFileId = '';
+        payload.coverImageAsset = null;
+      } else if (coverChanged) {
+        payload.coverImage = nextCoverUrl;
+        payload.coverImageFileId = nextCoverFileId;
+        payload.coverImageAsset = coverImageAsset;
+      } else {
+        delete payload.coverImage;
+        delete payload.coverImageFileId;
+        delete payload.coverImageAsset;
+      }
 
       const response = editingId
         ? await blogPostsAPI.update(editingId, payload)
@@ -488,7 +516,7 @@ const Blogs = () => {
         </Space>
       </div>
 
-      <Card className="blog-editor-shell">
+      <Card className="blog-editor-shell" data-tour="blogs-table">
         <Table columns={columns} dataSource={items} rowKey="_id" loading={loading} scroll={{ x: 1900 }} />
       </Card>
 
@@ -516,6 +544,7 @@ const Blogs = () => {
                 borderRadius: 14,
                 padding: 12,
               }}
+              data-tour="blogs-editor-toolbar"
             >
               <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
                 <Text strong>{editingId ? 'Update this blog' : 'Save this blog'}</Text>
@@ -556,7 +585,7 @@ const Blogs = () => {
               </Form.Item>
             </Space>
 
-            <Form.Item label="Cover Image" extra="Paste an image URL or upload from device. Cover uses object-contain so it won't crop.">
+            <Form.Item label="Cover Image" extra="Paste an image URL or upload from device. Cover uses object-contain so it won't crop." data-tour="blogs-cover-upload">
               <Space direction="vertical" style={{ width: '100%' }} size="middle">
                 <Form.Item name="coverImage" noStyle>
                   <Input

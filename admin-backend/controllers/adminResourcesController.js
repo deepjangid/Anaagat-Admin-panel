@@ -417,6 +417,25 @@ export const getContactInboxMessages = async (req, res) => {
 
     const normalizedItems = items.map((item) => ({
       ...item,
+      name:
+        normalizeText(item?.name) ||
+        normalizeText(item?.fullName) ||
+        normalizeText(item?.companyName) ||
+        normalizeText(item?.email) ||
+        "Unknown",
+      email: normalizeText(item?.email),
+      phone:
+        normalizeText(item?.phone) ||
+        normalizeText(item?.mobile) ||
+        normalizeText(item?.contactNumber),
+      subject:
+        normalizeText(item?.subject) ||
+        normalizeText(item?.topic),
+      message:
+        normalizeText(item?.message) ||
+        normalizeText(item?.description) ||
+        normalizeText(item?.notes),
+      sourceLabel: "Contact Form",
       status: item?.isRead ? "read" : "unread",
     }));
 

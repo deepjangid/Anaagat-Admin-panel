@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useEffect } from 'react';
+import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -265,7 +265,8 @@ const parseCsvRow = (line, delimiter = ',') => {
 
 const parseCsvText = (text) => {
   const normalized = String(text || '')
-    .replace(/\u0000/g, '')
+    .split('\0')
+    .join('')
     .replace(/^\uFEFF/, '')
     .replace(/\r\n/g, '\n');
   const rows = [];
@@ -537,7 +538,7 @@ const Jobs = ({
   const ownershipPayload = useMemo(() => buildOwnershipPayload({ includeClientId }), [includeClientId]);
 
   // Fetch jobs
-  const fetchJobs = async (page = 1, pageSize = 10) => {
+  const fetchJobs = useCallback(async (page = 1, pageSize = 10) => {
     setLoading(true);
     try {
       const response = await api.getAll({
@@ -555,15 +556,15 @@ const Jobs = ({
       }
     } catch (error) {
       console.error('Fetch Jobs Error:', error);
-      message.error(`Failed to fetch ${entityLabel.toLowerCase()}s`);
+      message.error(error?.response?.data?.message || `Failed to fetch ${entityLabel.toLowerCase()}s`);
     } finally {
       setLoading(false);
     }
-  };
+  }, [api, entityLabel]);
 
   useEffect(() => {
     fetchJobs();
-  }, []);
+  }, [fetchJobs]);
 
   const filteredJobs = useMemo(() => {
     const search = String(filters.search || '').trim();
@@ -922,6 +923,7 @@ const Jobs = ({
       <div
         className="page-header"
         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        data-tour="jobs-actions"
       >
         <h1>{pageTitle}</h1>
         <Space wrap>
@@ -993,7 +995,7 @@ const Jobs = ({
         </Space>
       </div>
 
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: 16 }} data-tour="jobs-filters">
         <Space wrap>
           <Search
             placeholder="Search by short code, title, company, location, qualification, or type"
@@ -1073,7 +1075,7 @@ const Jobs = ({
         </Space>
       </Card>
 
-      <Card>
+      <Card data-tour="jobs-table">
         <Table
           columns={columns}
           dataSource={filteredJobs}

@@ -106,11 +106,16 @@ const DashboardPanel = () => {
 
   return (
     <div>
-      <div className="page-header">
-        <h1>Dashboard</h1>
+      <div className="page-header" data-tour="dashboard-hero">
+        <div className="page-header-row">
+          <div>
+            <h1>Dashboard</h1>
+            <p>Track admin activity, platform stats, and quick operational health from one place.</p>
+          </div>
+        </div>
       </div>
 
-      <Row gutter={[16, 16]}>
+      <Row gutter={[16, 16]} data-tour="dashboard-stats">
         <Col xs={24} sm={12} lg={6}>
           <Card className="admin-surface-card">
             <Statistic title="Total Users" value={stats.totalUsers || stats.usersCount || 0} prefix={<MdPeople />} className="stats-card" />
@@ -155,7 +160,7 @@ const DashboardPanel = () => {
 
       <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
         <Col xs={24}>
-          <Card title="Latest Users" bordered={false} className="admin-surface-card">
+          <Card title="Latest Users" bordered={false} className="admin-surface-card" data-tour="dashboard-users-table">
             <Table
               columns={columns}
               dataSource={users}

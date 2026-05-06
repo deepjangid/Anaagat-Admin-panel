@@ -1,20 +1,15 @@
-import { Avatar, Button, Card, Empty, Space, Tag, Tooltip } from 'antd';
+import { Avatar, Button, Card, Empty, Space, Tag } from 'antd';
 import { FaLinkedinIn } from 'react-icons/fa6';
 import {
   MdAlternateEmail,
-  MdArrowDownward,
-  MdArrowUpward,
   MdDelete,
   MdEdit,
-  MdLink,
 } from 'react-icons/md';
 
 const TeamMembersList = ({
   items,
   onEdit,
   onDelete,
-  onMoveUp,
-  onMoveDown,
   disabled = false,
 }) => {
   if (!items.length) {
@@ -23,7 +18,7 @@ const TeamMembersList = ({
 
   return (
     <div className="grid gap-4 xl:grid-cols-2">
-      {items.map((member, index) => {
+      {items.map((member) => {
         const initials = String(member.fullName || 'TM')
           .split(' ')
           .filter(Boolean)

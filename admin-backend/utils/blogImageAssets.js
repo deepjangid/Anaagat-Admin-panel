@@ -49,7 +49,9 @@ export const normalizeContentImages = (html) => {
   return nextHtml;
 };
 
-export { hasEmbeddedBase64Images, normalizeFileAsset, normalizeFileAssetList as normalizeImageAssetList };
+const normalizeImageAssetList = (value) => normalizeFileAssetList(value);
+
+export { hasEmbeddedBase64Images, normalizeFileAsset, normalizeImageAssetList };
 
 export const filterAssetsUsedInHtml = (html, assets = []) => {
   const normalizedHtml = normalizeContentHtml(html);

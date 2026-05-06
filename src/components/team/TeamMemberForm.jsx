@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import {
   Avatar,
   Button,
@@ -25,11 +25,10 @@ const TeamMemberForm = ({
   saving = false,
 }) => {
   const [form] = Form.useForm();
-  const [imagePreview, setImagePreview] = useState(initialValues?.profileImage || '');
+  const currentProfileImage = Form.useWatch('profileImage', form);
 
   useEffect(() => {
     form.setFieldsValue(initialValues);
-    setImagePreview(initialValues?.profileImage || '');
   }, [form, initialValues]);
 
   const emitValuesChange = (changedValues = {}) => {
@@ -56,7 +55,6 @@ const TeamMemberForm = ({
         type: String(uploaded?.type || file.type || '').trim().toLowerCase(),
       };
 
-      setImagePreview(asset.url);
       form.setFieldValue('profileImage', asset.url);
       form.setFieldValue('profileImageAsset', asset);
       emitValuesChange({ profileImage: asset.url, profileImageAsset: asset });
@@ -68,7 +66,6 @@ const TeamMemberForm = ({
   };
 
   const handleRemoveImage = () => {
-    setImagePreview('');
     form.setFieldValue('profileImage', '');
     form.setFieldValue('profileImageAsset', null);
     emitValuesChange({ profileImage: '', profileImageAsset: null });
@@ -111,14 +108,14 @@ const TeamMemberForm = ({
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <Avatar
               size={72}
-              src={imagePreview || undefined}
+              src={currentProfileImage || undefined}
               style={{
                 background: 'linear-gradient(135deg, #0f766e 0%, #0ea5e9 100%)',
                 color: '#fff',
                 fontWeight: 700,
               }}
             >
-              {!imagePreview ? String(form.getFieldValue('fullName') || 'TM').slice(0, 2).toUpperCase() : null}
+              {!currentProfileImage ? String(form.getFieldValue('fullName') || 'TM').slice(0, 2).toUpperCase() : null}
             </Avatar>
 
             <div className="flex-1">
@@ -134,7 +131,7 @@ const TeamMemberForm = ({
                 >
                   <Button icon={<MdOutlineCloudUpload />}>Upload Image</Button>
                 </Upload>
-                {imagePreview ? (
+                {currentProfileImage ? (
                   <Button icon={<MdDeleteOutline />} danger onClick={handleRemoveImage}>
                     Remove
                   </Button>
@@ -181,7 +178,6 @@ const TeamMemberForm = ({
             disabled={saving}
             onClick={() => {
               form.setFieldsValue(initialValues);
-              setImagePreview(initialValues?.profileImage || '');
               onValuesChange?.(initialValues);
             }}
           >

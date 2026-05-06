@@ -92,6 +92,8 @@ const ApplicationsOverview = () => {
   const [editLoading, setEditLoading] = useState(false);
   const [editingApplication, setEditingApplication] = useState(null);
   const [form] = Form.useForm();
+  const currentPage = pagination.current;
+  const currentPageSize = pagination.pageSize;
 
   const isCandidateResponsePage = location.pathname === '/candidate-response';
   const pageTitle = isCandidateResponsePage ? 'Candidate Response' : 'Applications';
@@ -138,10 +140,10 @@ const ApplicationsOverview = () => {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchApplications(1, pagination.pageSize, filters, controller.signal);
+    fetchApplications(1, currentPageSize, filters, controller.signal);
     fetchStats(controller.signal);
     return () => controller.abort();
-  }, [fetchApplications, fetchStats, filters, pagination.pageSize]);
+  }, [currentPageSize, fetchApplications, fetchStats, filters]);
 
   const handleView = useCallback((record) => {
     setSelectedApplication(record);
@@ -277,14 +279,14 @@ const ApplicationsOverview = () => {
         setApplications((prev) => prev.filter((item) => item._id !== id));
         setSelectedApplication((prev) => (prev?._id === id ? null : prev));
         if (selectedApplication?._id === id) setDrawerOpen(false);
-        fetchApplications(pagination.current, pagination.pageSize, filters);
+        fetchApplications(currentPage, currentPageSize, filters);
         fetchStats();
       }
     } catch (error) {
       console.error(error);
       message.error(error?.response?.data?.message || 'Failed to delete application');
     }
-  }, [fetchApplications, fetchStats, filters, pagination.current, pagination.pageSize, selectedApplication]);
+  }, [currentPage, currentPageSize, fetchApplications, fetchStats, filters, selectedApplication]);
 
   const columns = useMemo(
     () => [
@@ -468,7 +470,7 @@ const ApplicationsOverview = () => {
             allowClear
           />
           <Select value={filters.status} style={{ width: 180 }} onChange={handleStatusFilter} options={STATUS_OPTIONS} />
-          <Button icon={<MdRefresh />} onClick={() => fetchApplications(pagination.current, pagination.pageSize, filters)}>
+          <Button icon={<MdRefresh />} onClick={() => fetchApplications(currentPage, currentPageSize, filters)}>
             Refresh
           </Button>
         </Space>

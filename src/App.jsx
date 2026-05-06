@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+import AppErrorBoundary from './components/AppErrorBoundary';
 
 import Login from './pages/Login';
 import Dashboard from './pages/DashboardPanel';
@@ -63,9 +64,14 @@ const AdminLayout = () => {
 
   return (
     <Layout className="admin-app-shell" style={{ minHeight: '100vh' }}>
-      <Sidebar collapsed={collapsed} isMobile={isMobile} unreadCount={inbox.unreadCount} onNavigate={() => {
-        if (isMobile) setCollapsed(true);
-      }} />
+      <Sidebar
+        collapsed={collapsed}
+        isMobile={isMobile}
+        unreadCount={inbox.unreadCount}
+        onNavigate={() => {
+          if (isMobile) setCollapsed(true);
+        }}
+      />
       {isMobile && !collapsed && (
         <div
           className="admin-sidebar-backdrop"
@@ -87,7 +93,9 @@ const AdminLayout = () => {
             transition: 'all 0.2s ease-in-out',
           }}
         >
-          <Outlet context={inbox} />
+          <AppErrorBoundary>
+            <Outlet context={inbox} />
+          </AppErrorBoundary>
         </Content>
       </Layout>
     </Layout>

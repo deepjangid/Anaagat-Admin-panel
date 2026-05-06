@@ -48,6 +48,18 @@ const normalizeStatus = (status) => {
   return "Draft";
 };
 
+const parseOptionalDate = (value) => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+
+  const normalized = String(value || "").trim();
+  if (!normalized) return null;
+
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) return "INVALID_DATE";
+  return parsed;
+};
+
 const normalizeStringArray = (value) => {
   if (Array.isArray(value)) {
     return value.map((item) => String(item || "").trim()).filter(Boolean);
@@ -128,6 +140,10 @@ const normalizePayload = async (payload = {}) => {
         ? "Published"
         : "Draft";
   const isPublished = normalizedStatus === "Published";
+  const normalizedPublishDate =
+    body.publishDate !== undefined || body.publishedAt !== undefined
+      ? parseOptionalDate(body.publishedAt ?? body.publishDate)
+      : undefined;
   const normalizedContent =
     body.content !== undefined
       ? normalizeContentImages(convertLegacyContentToHtml(body.content))
@@ -147,14 +163,7 @@ const normalizePayload = async (payload = {}) => {
     ...(normalizedCoverImage !== undefined ? { coverImage: normalizedCoverImage } : {}),
     ...(body.category !== undefined ? { category: String(body.category || "").trim() } : {}),
     ...(body.author !== undefined ? { author: String(body.author || "").trim() } : {}),
-    ...((body.publishDate !== undefined || body.publishedAt !== undefined)
-      ? {
-          publishDate:
-            body.publishedAt || body.publishDate
-              ? new Date(body.publishedAt || body.publishDate)
-              : null,
-        }
-      : {}),
+    ...(normalizedPublishDate !== undefined ? { publishDate: normalizedPublishDate } : {}),
     ...(body.status !== undefined || body.isPublished !== undefined
       ? { status: normalizedStatus, isPublished }
       : {}),
@@ -164,6 +173,26 @@ const normalizePayload = async (payload = {}) => {
     ...(body.tags !== undefined ? { tags: normalizeStringArray(body.tags) } : {}),
     ...(body.readingTime !== undefined ? { readingTime: String(body.readingTime || "").trim() } : {}),
   };
+};
+
+const getBlogErrorMessage = (error, fallbackMessage) => {
+  if (!error) return fallbackMessage;
+
+  if (error.code === 11000) {
+    return "A blog post with similar unique data already exists.";
+  }
+
+  if (error.name === "ValidationError") {
+    const firstMessage = Object.values(error.errors || {})[0]?.message;
+    return firstMessage || fallbackMessage;
+  }
+
+  if (error.name === "CastError") {
+    return `Invalid ${error.path || "value"} provided.`;
+  }
+
+  if (error.message) return error.message;
+  return fallbackMessage;
 };
 
 const formatBlogPost = (blogPost) => {
@@ -279,6 +308,13 @@ export const createBlogPost = async (req, res) => {
       });
     }
 
+    if (payload.publishDate === "INVALID_DATE") {
+      return res.status(400).json({
+        success: false,
+        message: "Publish date is invalid.",
+      });
+    }
+
     if (hasEmbeddedBase64Images(payload.content)) {
       return res.status(400).json({
         success: false,
@@ -308,7 +344,8 @@ export const createBlogPost = async (req, res) => {
     });
   } catch (error) {
     logError("createBlogPost error:", error);
-    res.status(500).json({ success: false, message: "Error creating blog post" });
+    const status = error?.name === "ValidationError" || error?.name === "CastError" ? 400 : 500;
+    res.status(status).json({ success: false, message: getBlogErrorMessage(error, "Error creating blog post") });
   }
 };
 
@@ -329,6 +366,13 @@ export const updateBlogPost = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Cover image must come from ImageKit upload only.",
+      });
+    }
+
+    if (payload.publishDate === "INVALID_DATE") {
+      return res.status(400).json({
+        success: false,
+        message: "Publish date is invalid.",
       });
     }
 
@@ -393,7 +437,8 @@ export const updateBlogPost = async (req, res) => {
     });
   } catch (error) {
     logError("updateBlogPost error:", error);
-    res.status(500).json({ success: false, message: "Error updating blog post" });
+    const status = error?.name === "ValidationError" || error?.name === "CastError" ? 400 : 500;
+    res.status(status).json({ success: false, message: getBlogErrorMessage(error, "Error updating blog post") });
   }
 };
 

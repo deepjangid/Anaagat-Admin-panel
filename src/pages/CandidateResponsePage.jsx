@@ -86,6 +86,8 @@ const CandidateResponsePage = () => {
   const [uiSettings, setUiSettings] = useState(DEFAULT_UI);
   const [pagination, setPagination] = useState(DEFAULT_PAGINATION);
   const [filters, setFilters] = useState({ status: '', search: '' });
+  const currentPage = pagination.current;
+  const currentPageSize = pagination.pageSize;
 
   const syncDrafts = useCallback((records) => {
     setDrafts((prev) => {
@@ -99,8 +101,8 @@ const CandidateResponsePage = () => {
   }, []);
 
   const fetchApplications = useCallback(async (
-    page = pagination.current,
-    pageSize = pagination.pageSize,
+    page = DEFAULT_PAGINATION.current,
+    pageSize = DEFAULT_PAGINATION.pageSize,
     currentFilters = filters,
     signal
   ) => {
@@ -132,13 +134,13 @@ const CandidateResponsePage = () => {
     } finally {
       setLoading(false);
     }
-  }, [filters, pagination.current, pagination.pageSize, syncDrafts]);
+  }, [filters, syncDrafts]);
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchApplications(pagination.current, pagination.pageSize, filters, controller.signal);
+    fetchApplications(currentPage, currentPageSize, filters, controller.signal);
     return () => controller.abort();
-  }, [fetchApplications, filters, pagination.current, pagination.pageSize]);
+  }, [currentPage, currentPageSize, fetchApplications, filters]);
 
   useEffect(() => {
     try {
@@ -195,14 +197,6 @@ const CandidateResponsePage = () => {
     setSelectedApplication(null);
   };
 
-  const updateUiSetting = (key, value) => {
-    setUiSettings((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const resetUiSettings = () => {
-    setUiSettings(DEFAULT_UI);
-  };
-
   const handleUpdate = async (record) => {
     const id = String(record._id);
     const draft = drafts[id] || getDraftFromRecord(record);
@@ -257,7 +251,7 @@ const CandidateResponsePage = () => {
         <p>Reply to job applicants here with a clean interview brief. Add status, response message, schedule, location, Google map link, contact person, and reporting instructions.</p>
       </div>
 
-      <Card className="admin-surface-card" style={{ marginBottom: 20 }}>
+      <Card className="admin-surface-card" style={{ marginBottom: 20 }} data-tour="candidate-response-toolbar">
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           <Alert
             type="info"
@@ -282,7 +276,7 @@ const CandidateResponsePage = () => {
               />
               <Button
                 icon={<MdRefresh />}
-                onClick={() => fetchApplications(pagination.current, pagination.pageSize, filters)}
+                onClick={() => fetchApplications(currentPage, currentPageSize, filters)}
                 loading={loading}
               >
                 Refresh
@@ -292,7 +286,7 @@ const CandidateResponsePage = () => {
         </Space>
       </Card>
 
-      <div className="response-card-list">
+      <div className="response-card-list" data-tour="candidate-response-list">
         {applications.length === 0 && !loading ? (
           <Card className="admin-surface-card">
             <Empty description="No applications found yet" />

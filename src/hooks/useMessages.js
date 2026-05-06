@@ -1,7 +1,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { adminAPI } from '../services/api';
 
-const POLL_INTERVAL = 5000;
+const POLL_INTERVAL = 3000;
+const INBOX_CACHE_KEY = 'admin-inbox-cache-v1';
+const SOUND_ENABLED = String(import.meta.env.VITE_ENABLE_NOTIFICATION_SOUND || '').trim() === 'true';
+
+const readCachedInbox = () => {
+  try {
+    const raw = localStorage.getItem(INBOX_CACHE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed?.messages) ? parsed.messages : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeCachedInbox = (messages) => {
+  try {
+    localStorage.setItem(INBOX_CACHE_KEY, JSON.stringify({ messages, updatedAt: Date.now() }));
+  } catch {
+    // ignore cache failures
+  }
+};
 
 const formatMessageTime = (value) => {
   if (!value) return '';
@@ -37,12 +58,13 @@ const formatMessageTime = (value) => {
 const normalizeMessage = (item) => {
   const createdAt = item?.createdAt || item?.updatedAt || null;
   const id = String(item?._id || item?.id || '');
-  const name = String(item?.name || item?.fullName || item?.email || 'Unknown');
+  const name = String(item?.name || item?.fullName || item?.email || 'Unknown').trim();
   const email = String(item?.email || '').trim();
-  const phone = String(item?.phone || item?.mobile || '').trim();
+  const phone = String(item?.phone || item?.mobile || item?.contactNumber || '').trim();
   const subject = String(item?.subject || '').trim();
-  const message = String(item?.message || item?.subject || 'No message provided').trim();
-  const unread = item?.status ? item.status === 'unread' : !Boolean(item?.isRead);
+  const body = String(item?.message || item?.description || item?.notes || '').trim();
+  const message = body || subject || 'No message provided';
+  const unread = item?.status ? item.status === 'unread' : !item?.isRead;
 
   return {
     id,
@@ -51,6 +73,7 @@ const normalizeMessage = (item) => {
     phone,
     subject,
     message,
+    source: String(item?.source || item?.sourceLabel || 'Contact Form').trim(),
     status: unread ? 'unread' : 'read',
     unread,
     createdAt,
@@ -62,8 +85,9 @@ const sortByLatest = (items) =>
   [...items].sort((left, right) => new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime());
 
 export const useMessages = () => {
-  const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [cachedMessages] = useState(() => readCachedInbox());
+  const [messages, setMessages] = useState(cachedMessages);
+  const [loading, setLoading] = useState(cachedMessages.length === 0);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const previousUnreadCountRef = useRef(0);
@@ -83,6 +107,7 @@ export const useMessages = () => {
         : [];
 
       setMessages(nextItems);
+      writeCachedInbox(nextItems);
     } catch (fetchError) {
       if (fetchError?.name === 'CanceledError' || fetchError?.code === 'ERR_CANCELED') return;
       console.error('Inbox fetch failed:', fetchError);
@@ -140,7 +165,7 @@ export const useMessages = () => {
   useEffect(() => {
     if (loading) return;
 
-    if (unreadCount > previousUnreadCountRef.current) {
+    if (SOUND_ENABLED && unreadCount > previousUnreadCountRef.current) {
       try {
         const audio = new Audio('/notification.mp3');
         audio.volume = 0.35;

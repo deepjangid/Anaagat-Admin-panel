@@ -169,7 +169,7 @@ const Resumes = () => {
         <h1>Resumes</h1>
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }} data-tour="resumes-stats">
         <Col xs={12} sm={12} lg={6}>
           <Card className="admin-surface-card" size="small">
             <Statistic title="Total Resumes" value={stats.total} />
@@ -192,7 +192,7 @@ const Resumes = () => {
         </Col>
       </Row>
 
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: 16 }} data-tour="resumes-search">
         <Space wrap>
           <Search
             placeholder="Search by name, email, phone, city, job, or id"
@@ -206,7 +206,7 @@ const Resumes = () => {
         </Space>
       </Card>
 
-      <Card>
+      <Card data-tour="resumes-table">
         <Table
           columns={columns}
           dataSource={items}

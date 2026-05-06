@@ -1,6 +1,6 @@
 import { memo } from 'react';
-import { ArrowLeft, Inbox as InboxIcon, Mail, Phone } from 'lucide-react';
-import { getAvatarTheme } from './MessageItem';
+import { ArrowLeft, Copy, Inbox as InboxIcon, Mail, Phone, Users } from 'lucide-react';
+import { getAvatarTheme } from '../utils/messageAvatar';
 
 const formatFullDate = (value) => {
   if (!value) return 'Unknown time';
@@ -22,6 +22,9 @@ const MessageDetails = memo(function MessageDetails({
   unreadCount,
   refreshing,
   onBack,
+  onCopyEmail,
+  onCopyPhone,
+  onOpenContacts,
 }) {
   if (!message) {
     return (
@@ -34,6 +37,16 @@ const MessageDetails = memo(function MessageDetails({
           <p className="mt-3 text-sm leading-relaxed text-gray-500">
             Select a message from the inbox to view full contact details, including email, phone, and the complete message.
           </p>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={onOpenContacts}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+            >
+              <Users size={16} />
+              Open All Contacts
+            </button>
+          </div>
           {unreadCount ? (
             <div className="mt-5 inline-flex rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700">
               {unreadCount} unread message{unreadCount === 1 ? '' : 's'}
@@ -45,7 +58,7 @@ const MessageDetails = memo(function MessageDetails({
   }
 
   return (
-    <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+    <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm" data-tour="inbox-details">
       <div className="p-5 sm:p-6">
         <button
           type="button"
@@ -78,6 +91,11 @@ const MessageDetails = memo(function MessageDetails({
           </div>
 
           <div className="flex shrink-0 flex-wrap items-center gap-3">
+            {message.source ? (
+              <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+                {message.source}
+              </span>
+            ) : null}
             <span className={`rounded-full px-3 py-1 text-xs font-semibold ${message.unread ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
               {message.unread ? 'Unread' : 'Read'}
             </span>
@@ -90,6 +108,41 @@ const MessageDetails = memo(function MessageDetails({
 
       <div className="flex-1 overflow-y-auto p-5 sm:p-6">
         <div className="rounded-2xl bg-white">
+          <div className="mb-5 flex flex-wrap gap-3">
+            <a
+              href={message.email ? `mailto:${message.email}` : undefined}
+              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
+                message.email
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'cursor-not-allowed bg-gray-100 text-gray-400'
+              }`}
+              onClick={(event) => {
+                if (!message.email) event.preventDefault();
+              }}
+            >
+              <Mail size={16} />
+              Reply by Email
+            </a>
+            <button
+              type="button"
+              onClick={() => onCopyEmail?.(message.email)}
+              disabled={!message.email}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400"
+            >
+              <Copy size={16} />
+              Copy Email
+            </button>
+            <button
+              type="button"
+              onClick={() => onCopyPhone?.(message.phone)}
+              disabled={!message.phone}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400"
+            >
+              <Phone size={16} />
+              Copy Phone
+            </button>
+          </div>
+
           {message.subject ? (
             <div className="mb-5">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">Subject</p>
