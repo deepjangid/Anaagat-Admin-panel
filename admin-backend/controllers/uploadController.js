@@ -9,6 +9,9 @@ const allowedMimeTypes = new Set([
   "application/pdf",
 ]);
 
+const BLOG_UPLOAD_FOLDER = "/recruitkr_blog";
+const DEFAULT_UPLOAD_FOLDER = "/admin-panel";
+
 export const uploadFile = async (req, res) => {
   try {
     if (!imagekit) {
@@ -33,11 +36,12 @@ export const uploadFile = async (req, res) => {
     const safeBaseName = String(path.basename(file.originalname || "upload"))
       .replace(/\s+/g, "-")
       .replace(/[^a-zA-Z0-9._-]/g, "");
+    const uploadFolder = req.path === "/blog-image" ? BLOG_UPLOAD_FOLDER : DEFAULT_UPLOAD_FOLDER;
 
     const uploadedFile = await imagekit.upload({
       file: file.buffer,
       fileName: `${Date.now()}-${safeBaseName || "upload"}`,
-      folder: "/admin-panel",
+      folder: uploadFolder,
       useUniqueFileName: true,
     });
 
@@ -46,6 +50,8 @@ export const uploadFile = async (req, res) => {
       file.mimetype,
       "size:",
       file.size,
+      "folder:",
+      uploadFolder,
       "url:",
       uploadedFile.url,
       "fileId:",

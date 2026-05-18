@@ -14,6 +14,7 @@ import applicationsRoutes from "./routes/applicationsRoutes.js";
 import candidateApplicationsRoutes from "./routes/candidateApplicationsRoutes.js";
 import blogPostRoutes from "./routes/blogPostRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
+import blogRoutes from "./routes/blogRoutes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,6 +52,7 @@ const corsOrigins = process.env.CORS_ORIGIN
       .filter(Boolean)
   : [];
 const corsAllowAll = corsOrigins.includes("*");
+const localDevOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/;
 
 const corsOptions = {
   origin: (origin, callback) => {
@@ -61,6 +63,7 @@ const corsOptions = {
     if (corsAllowAll || corsOrigins.length === 0) return callback(null, true);
 
     if (corsOrigins.includes(origin)) return callback(null, true);
+    if (!isProduction && localDevOriginPattern.test(origin)) return callback(null, true);
     logWarn("[cors] blocked origin:", origin, "allowed:", corsOrigins);
     return callback(null, false);
   },
@@ -88,6 +91,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/openings", openingRoutes);
 app.use("/api/blogposts", blogPostRoutes);
+app.use("/api/blogs", blogRoutes);
 app.use("/api/uploads", uploadRoutes);
 app.use("/api/applications", applicationsRoutes);
 app.use("/api", candidateApplicationsRoutes);

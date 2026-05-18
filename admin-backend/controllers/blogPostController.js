@@ -1,6 +1,8 @@
 import BlogPost from "../models/BlogPost.js";
 import {
   filterAssetsUsedInHtml,
+  findNonImageKitImageUrls,
+  findUntrackedImageUrls,
   hasEmbeddedBase64Images,
   normalizeContentImages,
   normalizeImageAssetList,
@@ -81,6 +83,18 @@ const convertLegacyContentToHtml = (value) => {
   }
 
   return String(value || "").trim();
+};
+
+const getInvalidContentImageMessage = (content) => {
+  const invalidUrls = findNonImageKitImageUrls(content);
+  if (!invalidUrls.length) return "";
+  return "Blog content images must be uploaded through ImageKit only. Please use the editor image upload button.";
+};
+
+const getUntrackedContentImageMessage = (content, contentImages) => {
+  const untrackedUrls = findUntrackedImageUrls(content, contentImages);
+  if (!untrackedUrls.length) return "";
+  return "Every blog content image must be uploaded using the editor image upload button so its ImageKit metadata can be saved.";
 };
 
 const normalizeCoverImageInput = (body = {}) => {
@@ -229,6 +243,26 @@ const formatBlogPost = (blogPost) => {
   };
 };
 
+const formatBlogListItem = (blogPost) => {
+  const raw = blogPost?.toObject ? blogPost.toObject() : blogPost;
+  const coverAsset = getFormattedCoverAsset(raw);
+
+  return {
+    _id: raw?._id,
+    title: raw?.title ?? "",
+    slug: raw?.slug ?? "",
+    excerpt: raw?.excerpt ?? "",
+    coverImage: coverAsset?.url ?? "",
+    category: raw?.category ?? "General",
+    author: raw?.author ?? "Anaagat Team",
+    tags: Array.isArray(raw?.tags) ? raw.tags : [],
+    readingTime: raw?.readingTime ?? "",
+    publishDate: raw?.publishDate
+      ? new Date(raw.publishDate).toISOString().slice(0, 10)
+      : "",
+  };
+};
+
 const parseBoolean = (value) => {
   const normalized = String(value || "").trim().toLowerCase();
   if (!normalized) return null;
@@ -294,6 +328,76 @@ export const getBlogPosts = async (req, res) => {
   }
 };
 
+export const getPublicBlogs = async (req, res) => {
+  try {
+    const page = Math.max(Number.parseInt(req.query?.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(Number.parseInt(req.query?.limit, 10) || 10, 1), 100);
+    const skip = (page - 1) * limit;
+    const query = {
+      $or: [
+        { isPublished: true },
+        { status: "Published" },
+      ],
+    };
+
+    logInfo("[blogs:list] query:", JSON.stringify({ page, limit, skip }));
+
+    const [blogs, total] = await Promise.all([
+      BlogPost.find(query)
+        .select("title slug excerpt coverImage publishDate readingTime category author tags")
+        .sort({ publishDate: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      BlogPost.countDocuments(query),
+    ]);
+
+    res.json({
+      success: true,
+      blogs: blogs.map((blog) => formatBlogListItem(blog)),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
+    });
+  } catch (error) {
+    logError("getPublicBlogs error:", error);
+    res.status(500).json({ success: false, message: "Error fetching blogs" });
+  }
+};
+
+export const getPublicBlogBySlug = async (req, res) => {
+  try {
+    const slug = String(req.params?.slug || "").trim().toLowerCase();
+
+    if (!slug) {
+      return res.status(400).json({ success: false, message: "Blog slug is required" });
+    }
+
+    const blogPost = await BlogPost.findOne({
+      slug,
+      $or: [
+        { isPublished: true },
+        { status: "Published" },
+      ],
+    }).lean();
+
+    if (!blogPost) {
+      return res.status(404).json({ success: false, message: "Blog post not found" });
+    }
+
+    res.json({
+      success: true,
+      blog: formatBlogPost(blogPost),
+    });
+  } catch (error) {
+    logError("getPublicBlogBySlug error:", error);
+    res.status(500).json({ success: false, message: "Error fetching blog post" });
+  }
+};
+
 export const createBlogPost = async (req, res) => {
   try {
     const payload = await normalizePayload(req.body);
@@ -319,6 +423,25 @@ export const createBlogPost = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Embedded base64 images are not allowed. Please upload images and use the returned URL.",
+      });
+    }
+
+    const invalidContentImageMessage = getInvalidContentImageMessage(req.body?.content);
+    if (invalidContentImageMessage) {
+      return res.status(400).json({
+        success: false,
+        message: invalidContentImageMessage,
+      });
+    }
+
+    const untrackedContentImageMessage = getUntrackedContentImageMessage(
+      req.body?.content,
+      req.body?.contentImages
+    );
+    if (untrackedContentImageMessage) {
+      return res.status(400).json({
+        success: false,
+        message: untrackedContentImageMessage,
       });
     }
 
@@ -381,6 +504,29 @@ export const updateBlogPost = async (req, res) => {
         success: false,
         message: "Embedded base64 images are not allowed. Please upload images and use the returned URL.",
       });
+    }
+
+    if ("content" in req.body) {
+      const invalidContentImageMessage = getInvalidContentImageMessage(req.body.content);
+      if (invalidContentImageMessage) {
+        return res.status(400).json({
+          success: false,
+          message: invalidContentImageMessage,
+        });
+      }
+
+      const nextRawContentImages =
+        req.body?.contentImages !== undefined ? req.body.contentImages : existingBlogPost.contentImages;
+      const untrackedContentImageMessage = getUntrackedContentImageMessage(
+        req.body.content,
+        nextRawContentImages
+      );
+      if (untrackedContentImageMessage) {
+        return res.status(400).json({
+          success: false,
+          message: untrackedContentImageMessage,
+        });
+      }
     }
 
     if ("title" in payload && !payload.title) {

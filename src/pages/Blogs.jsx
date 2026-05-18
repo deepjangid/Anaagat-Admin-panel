@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import 'react-quill-new/dist/quill.snow.css';
 import { Button, Card, Form, Image, Input, Modal, Popconfirm, Space, Table, Tag, Typography, message } from 'antd';
 import { MdAdd, MdDelete, MdEdit, MdRefresh, MdUpload, MdVisibility } from 'react-icons/md';
-import { blogPostsAPI, uploadFile } from '../services/api';
+import { blogPostsAPI, blogUploadsAPI } from '../services/api';
 import BlogContentRenderer from '../components/BlogContentRenderer';
 
 const { TextArea } = Input;
@@ -59,6 +59,21 @@ const stripHtml = (value) =>
 
 const hasEmbeddedBase64Image = (value) => /<img\b[^>]*\bsrc=["']data:image\//i.test(String(value || ''));
 const isValidImageUrl = (value) => /^https:\/\/ik\.imagekit\.io\//i.test(String(value || '').trim());
+const extractEditorImageUrls = (value) =>
+  Array.from(String(value || '').matchAll(/<img\b[^>]*\bsrc=["'](.*?)["'][^>]*>/gi))
+    .map((match) => String(match[1] || '').trim())
+    .filter(Boolean);
+const hasNonImageKitEditorImage = (value) =>
+  extractEditorImageUrls(value).some((url) => !isValidImageUrl(url));
+const findUntrackedEditorImages = (html, assets = []) => {
+  const trackedUrls = new Set(
+    (Array.isArray(assets) ? assets : [])
+      .map((asset) => String(asset?.url || '').trim())
+      .filter(Boolean)
+  );
+
+  return extractEditorImageUrls(html).filter((url) => isValidImageUrl(url) && !trackedUrls.has(url));
+};
 const syncContentImagesWithHtml = (html, assets = []) => {
   const matches = String(html || '').match(/<img\b[^>]*\bsrc=["'](.*?)["'][^>]*>/gi) || [];
   const urlSet = new Set(
@@ -227,7 +242,7 @@ const Blogs = () => {
       throw new Error('Image is too large. Please choose an image smaller than 5 MB.');
     }
 
-    const response = await uploadFile(file);
+    const response = await blogUploadsAPI.uploadImage(file);
     const imageUrl = String(response?.url || '').trim();
     const fileId = String(response?.fileId || '').trim();
 
@@ -327,6 +342,16 @@ const Blogs = () => {
     try {
       if (hasEmbeddedBase64Image(editorHtml)) {
         message.error('Base64 images are not allowed. Please upload images using the editor image button.');
+        return;
+      }
+
+      if (hasNonImageKitEditorImage(editorHtml)) {
+        message.error('Blog content images must be uploaded through the editor image upload button only.');
+        return;
+      }
+
+      if (findUntrackedEditorImages(editorHtml, contentImages).length) {
+        message.error('Every blog image must be uploaded through the editor image upload button before saving.');
         return;
       }
 

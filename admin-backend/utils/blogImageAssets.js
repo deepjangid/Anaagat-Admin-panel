@@ -17,6 +17,19 @@ export const normalizeImageUrl = (value) => {
 
 export const normalizeContentHtml = (value) => String(value || "").trim();
 
+export const listImageUrlsInHtml = (html) =>
+  Array.from(normalizeContentHtml(html).matchAll(IMG_TAG_REGEX))
+    .map((match) => normalizeString(match[2]))
+    .filter(Boolean);
+
+export const findNonImageKitImageUrls = (html) =>
+  listImageUrlsInHtml(html).filter((url) => !isImageKitUrl(url));
+
+export const findUntrackedImageUrls = (html, assets = []) => {
+  const trackedUrls = new Set(normalizeFileAssetList(assets).map((asset) => asset.url));
+  return listImageUrlsInHtml(html).filter((url) => isImageKitUrl(url) && !trackedUrls.has(url));
+};
+
 export const normalizeContentImages = (html) => {
   let nextHtml = normalizeContentHtml(html);
   if (!nextHtml) return "";

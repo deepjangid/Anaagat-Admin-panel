@@ -116,6 +116,11 @@ export const blogPostsAPI = {
   delete: (id) => api.delete(`/blogposts/${id}`),
 };
 
+export const publicBlogsAPI = {
+  getAll: (params) => api.get("/blogs", { params }),
+  getBySlug: (slug) => api.get(`/blogs/${encodeURIComponent(slug)}`),
+};
+
 export const uploadFile = async (file) => {
   const formData = new FormData();
   formData.append('file', file);
@@ -130,7 +135,18 @@ export const uploadFile = async (file) => {
 };
 
 export const blogUploadsAPI = {
-  uploadImage: (file) => uploadFile(file),
+  uploadImage: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await api.post("/uploads/blog-image", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    return response.data;
+  },
 };
 
 // â”€â”€â”€ APPLICATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
